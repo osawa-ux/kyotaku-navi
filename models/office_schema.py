@@ -30,10 +30,10 @@ class OfficeMaster(BaseModel):
     """
 
     # --- 識別子 ---
-    office_id: str = Field(description="一意識別子（office_code ベース）")
+    office_id: str = Field(description="一意識別子。形式: mhlw_kaigo:{office_code}:430")
     portal_type: str = Field(
-        default="kyotaku_care_support",
-        description="ポータル種別 (kyotaku_care_support / houmon_kango / zaitaku_clinic)"
+        default="kyotaku",
+        description="ポータル種別 (kyotaku / houmon_kango / zaitaku_clinic)"
     )
     service_code: str = Field(
         default="430",
@@ -88,7 +88,7 @@ class OfficeMaster(BaseModel):
     website_url: Optional[str] = Field(default=None, description="公式サイトURL")
 
     # --- データソース管理 ---
-    source_primary: str = Field(description="主データソース名（例: mhlw_opendata）")
+    source_primary: str = Field(description="主データソース名（例: mhlw_kaigo_open_data）")
     source_url: Optional[str] = Field(default=None, description="データ取得元URL")
     source_updated_at: Optional[str] = Field(
         default=None,
@@ -152,7 +152,7 @@ class KyotakuFeatures(BaseModel):
     remarks_raw: Optional[str] = Field(default=None, description="備考（生テキスト）")
 
     # データソース
-    source: str = Field(default="mhlw_opendata", description="データソース名")
+    source: str = Field(default="mhlw_kaigo_open_data", description="データソース名")
 
     # === 将来追加予定（Phase 3: 介護サービス情報公表システムスクレイピング後）===
     # care_manager_count: Optional[int]          # ケアマネジャー人数
