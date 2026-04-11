@@ -1,0 +1,101 @@
+# 出力スキーマ定義
+# 居宅介護支援事業所ナビ
+# 訪問看護 config/schema.yaml と同一構造
+
+offices_master:
+  description: "居宅介護支援事業所 基本情報（全件）"
+  primary_key: "office_id"
+  fields:
+    - {name: office_id,           type: string,  required: true,  note: "事業所番号をベースに生成"}
+    - {name: portal_type,         type: string,  required: true,  default: "kyotaku_care_support"}
+    - {name: service_code,        type: string,  required: true,  default: "430"}
+    - {name: service_name,        type: string,  required: true,  default: "居宅介護支援"}
+    - {name: name,                type: string,  required: true}
+    - {name: name_kana,           type: string,  required: false}
+    - {name: prefecture,          type: string,  required: true}
+    - {name: pref_code,           type: string,  required: true,  format: "NN（2桁）"}
+    - {name: city,                type: string,  required: true}
+    - {name: city_code,           type: string,  required: false, format: "NNNNNN（6桁）"}
+    - {name: address,             type: string,  required: true}
+    - {name: address_building,    type: string,  required: false, note: "方書・ビル名"}
+    - {name: postal_code,         type: string,  required: false, format: "NNN-NNNN"}
+    - {name: tel,                 type: string,  required: false, format: "NNN-NNNN-NNNN"}
+    - {name: fax,                 type: string,  required: false, format: "NNN-NNNN-NNNN"}
+    - {name: corporation_number,  type: string,  required: false, format: "13桁"}
+    - {name: corporation_name,    type: string,  required: false}
+    - {name: office_code,         type: string,  required: true,  format: "10桁"}
+    - {name: latitude,            type: float,   required: false}
+    - {name: longitude,           type: float,   required: false}
+    - {name: website_url,         type: string,  required: false}
+    - {name: source_primary,      type: string,  required: true}
+    - {name: source_url,          type: string,  required: false}
+    - {name: source_updated_at,   type: string,  required: false}
+    - {name: retrieved_at,        type: string,  required: false, format: "ISO8601"}
+    - {name: is_active,           type: boolean, required: true,  default: true}
+    - {name: raw_address,         type: string,  required: false}
+    - {name: raw_name,            type: string,  required: false}
+    - {name: raw_corporation_name,type: string,  required: false}
+
+offices_features:
+  description: "居宅介護支援事業所 固有の拡張情報"
+  foreign_key: "office_id -> offices_master.office_id"
+  fields:
+    - {name: office_id,            type: string,  required: true}
+    - {name: business_days_text,   type: string,  required: false, note: "利用可能曜日テキスト"}
+    - {name: business_days_note,   type: string,  required: false, note: "曜日特記事項"}
+    - {name: capacity,             type: integer, required: false, note: "定員 (0=未記入)"}
+    - {name: inclusive_service,    type: boolean, required: false, note: "共生型サービス"}
+    - {name: meets_kaigo_standard, type: boolean, required: false, note: "介護保険基準充足"}
+    - {name: meets_shogai_standard,type: boolean, required: false, note: "障害福祉基準充足"}
+    - {name: remarks_raw,          type: string,  required: false}
+    - {name: source,               type: string,  required: true,  default: "mhlw_opendata"}
+
+offices_web:
+  description: "Web補完情報（Google Places等）"
+  foreign_key: "office_id -> offices_master.office_id"
+  fields:
+    - {name: office_id,       type: string,  required: true}
+    - {name: website_url,     type: string,  required: false}
+    - {name: google_place_id, type: string,  required: false}
+    - {name: rating,          type: float,   required: false, range: "1.0-5.0"}
+    - {name: review_count,    type: integer, required: false}
+    - {name: photo_url,       type: string,  required: false}
+    - {name: business_status, type: string,  required: false, note: "OPERATIONAL / CLOSED_PERMANENTLY 等"}
+
+scrape_audit:
+  description: "取得監査ログ（ポータル共通）"
+  primary_key: "run_id"
+  fields:
+    - {name: run_id,        type: string,  required: true}
+    - {name: source_name,   type: string,  required: true}
+    - {name: target_url,    type: string,  required: true}
+    - {name: fetched_at,    type: string,  required: true, format: "ISO8601"}
+    - {name: status,        type: string,  required: true, values: ["success", "error", "skipped"]}
+    - {name: row_count,     type: integer, required: false}
+    - {name: error_message, type: string,  required: false}
+    - {name: file_hash,     type: string,  required: false, note: "SHA256"}
+    - {name: file_path,     type: string,  required: false}
+
+normalization_rules:
+  zenkaku_to_hankaku: true          # NFKC正規化（全角英数→半角）
+  prefecture: "正式表記（都道府県付き）"
+  tel_format: "ハイフン付き NNN-NNNN-NNNN"
+  fax_format: "ハイフン付き NNN-NNNN-NNNN"
+  postal_format: "NNN-NNNN"
+  address_split:
+    - prefecture   # 都道府県
+    - city         # 市区町村
+    - street       # 番地以降
+  corporation_name: "原文保持（(株)等への変換はしない）"
+  capacity_zero: "0 は null として扱う（居宅介護支援は実質定員なし）"
+
+dedup_rules:
+  - {priority: 1, method: "office_code exact match",             note: "事業所番号10桁が完全一致"}
+  - {priority: 2, method: "normalized_name + normalized_address", note: "名称・住所の正規化後一致"}
+  - {priority: 3, method: "name + tel",                          note: "名称＋電話番号一致"}
+  - {priority: 4, method: "fuzzy -> review_candidates",          note: "曖昧一致は自動マージせずレビュー対象"}
+
+# 将来フェーズで追加予定のフィールド（Phase 3）
+# care_manager_count, chief_care_manager_count, employee_total,
+# users_total, service_area_text, operating_policy_text
+# → 介護サービス情報公表システムのスクレイピングが必要

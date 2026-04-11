@@ -1,0 +1,64 @@
+# データソース定義
+# 居宅介護支援事業所ナビ
+# 訪問看護 config/sources.yaml と同一構造
+
+mhlw:
+  name: "厚生労働省 介護サービス情報公表システム オープンデータ"
+  license: "CC BY 4.0"
+  attribution: "介護サービス情報公表システム（厚生労働省）のデータを基に作成"
+  reference_url: "https://www.mhlw.go.jp/stf/kaigo-kouhyou_opendata.html"
+  urls:
+    jigyosho_430:
+      url: "https://www.mhlw.go.jp/content/12300000/jigyosho_430.csv"
+      description: "居宅介護支援（サービスコード430）"
+      format: "csv"
+      encoding: "utf-8-sig"   # BOM付きUTF-8
+      update_frequency: "年2回（6月末・12月末）"
+      expected_rows: 36491    # 2025年時点。更新後に再確認すること
+      expected_columns: 24
+  target_prefecture: null  # null = 全国（47都道府県）
+  output_dir: "data_sources/mhlw"
+  output_filename: "raw_jigyosho_430.csv"
+
+# --- 将来拡張ソース ---
+
+kaigo_kouhyou:
+  name: "介護サービス情報公表システム（詳細ページ）"
+  enabled: false
+  note: |
+    SPA（React製）のため通常のHTTPリクエストでは取得不可。
+    Playwright等のブラウザ自動化が必要。
+    取得可能な追加情報:
+      - ケアマネジャー人数（主任含む）
+      - 従業員総数・利用者総数
+      - サービス提供エリア詳細
+      - 運営方針テキスト
+    難易度: 高（セッション管理・レート制限あり）
+    実装目安: Phase 3以降
+
+google_places:
+  name: "Google Places API"
+  enabled: false
+  api_key_env: "GOOGLE_PLACES_API_KEY"
+  note: |
+    口コミ評価・写真・営業状態の補完に使用予定。
+    月間リクエスト数に応じた課金が発生するため、
+    大量実行前にコスト試算を行うこと（100件超で要確認）。
+    実装目安: Phase 2以降（優先度: 中）
+
+geocoding:
+  name: "Geocoding API"
+  enabled: false
+  provider: "google"   # or "yahoo_japan"
+  api_key_env: "GEOCODING_API_KEY"
+  note: |
+    厚労省CSVに緯度経度が100%充填されているため、
+    当面は不要。住所変更等への対応として将来検討。
+
+pref_opendata:
+  name: "都道府県別オープンデータ"
+  enabled: false
+  note: |
+    一部の都道府県（大阪府、北海道等）が独自にオープンデータを提供。
+    厚労省データとの差分確認・補完に活用可能。
+    都道府県ごとに仕様が異なるため、個別対応が必要。
