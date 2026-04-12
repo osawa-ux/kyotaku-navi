@@ -2,7 +2,8 @@
   "site_id": "kyotaku_care_support",
   "site_name": "居宅介護支援ナビ",
   "site_description": "全国36,491件の居宅介護支援事業所を検索できるポータルサイト",
-  "site_url": "",
+  "site_url": "https://care.zaitaku-navi.com",
+  "cname_domain": "care.zaitaku-navi.com",
 
   "entity_name": "事業所",
   "entity_type": "居宅介護支援事業所",

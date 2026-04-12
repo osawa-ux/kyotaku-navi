@@ -857,6 +857,10 @@ def build_site():
 
     # CNAME / .nojekyll (GitHub Pages用)
     (DIST_DIR / '.nojekyll').write_text('', encoding='utf-8')
+    cname = CFG.get('cname_domain', '')
+    if cname:
+        (DIST_DIR / 'CNAME').write_text(cname + '\n', encoding='utf-8')
+        print(f'CNAME 生成完了: {cname}')
 
     # 404ページ
     page_404 = make_head(f'ページが見つかりません | {SITE_NAME}',
