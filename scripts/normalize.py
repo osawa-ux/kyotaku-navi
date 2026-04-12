@@ -38,6 +38,7 @@ OUTPUT_JSON = os.path.join(OUTPUT_DIR, "offices_430.json")
 PORTAL_TYPE = "kyotaku"
 SERVICE_CODE = "430"
 SERVICE_NAME = "居宅介護支援"
+SERVICE_CATEGORY = "caremanager"  # URL prefix。将来 home-help / day-service 等を追加
 SOURCE_PRIMARY = "mhlw_kaigo_open_data"
 SOURCE_URL = "https://www.mhlw.go.jp/content/12300000/jigyosho_430.csv"
 
@@ -215,6 +216,7 @@ def normalize_row(row: list[str], cols: list[str], retrieved_at: str) -> dict:
         "portal_type": PORTAL_TYPE,
         "service_code": SERVICE_CODE,
         "service_name": SERVICE_NAME,
+        "service_category": SERVICE_CATEGORY,
         # --- 基本情報 ---
         "name": clean_str(raw_name),
         "name_kana": clean_str(col(5)),

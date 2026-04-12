@@ -10,7 +10,8 @@
   ├── index.html                     # トップページ（都道府県一覧）
   ├── pref/{pref_slug}.html          # 都道府県ページ
   ├── pref/{pref_slug}/{city}.html   # 市区町村ページ
-  ├── office/{slug}.html             # 事業所詳細ページ
+  ├── caremanager/index.html         # カテゴリトップ（将来の home-help 等と並列）
+  ├── caremanager/{slug}.html        # 事業所詳細ページ（サービスカテゴリ別）
   ├── data/
   │   ├── search/{pref_code}.json    # 都道府県別検索JSON
   │   └── offices_geo.json           # 地図用軽量JSON
@@ -52,10 +53,23 @@ SITE_URL = CFG.get('site_url', '')
 ENTITY_NAME = CFG.get('entity_name', '事業所')
 ENTITY_TYPE = CFG.get('entity_type', '居宅介護支援事業所')
 CARE_TYPE = CFG.get('care_type', '居宅介護支援')
-ENTITY_DETAIL_PREFIX = CFG.get('entity_detail_prefix', 'office')
 OPERATOR_NAME = 'MDX株式会社'
 GA4_ID = CFG.get('analytics', {}).get('ga4_id', '')
 ATTRIBUTION = CFG.get('attribution', {}).get('source', '')
+
+# --- サービスカテゴリ設定 ---
+# 将来 home-help / day-service 等を追加する際は site_config.json の
+# service_categories に追記するだけで対応できる構造にする。
+DEFAULT_SERVICE_CATEGORY = CFG.get('default_service_category', 'caremanager')
+SERVICE_CATEGORIES = CFG.get('service_categories', {
+    'caremanager': {
+        'label': 'ケアマネジャー事業所',
+        'short_label': 'ケアマネ',
+        'url_prefix': 'caremanager',
+        'description': '居宅介護支援事業所（ケアマネジャー）を検索',
+        'enabled': True,
+    }
+})
 
 DATA_FILE = BASE_DIR / 'data' / 'normalized' / 'offices_430.json'
 DIST_DIR = BASE_DIR / CFG.get('build', {}).get('output_dir', 'dist')
@@ -115,6 +129,34 @@ def office_slug(office_id: str) -> str:
     mhlw_kaigo:0170102313:430 → mhlw_kaigo_0170102313_430
     """
     return office_id.replace(':', '_')
+
+
+def get_category(o: dict) -> str:
+    """事業所レコードから service_category を取得。未設定ならデフォルト"""
+    return o.get('service_category') or DEFAULT_SERVICE_CATEGORY
+
+
+def category_url_prefix(category: str) -> str:
+    """service_category から URL prefix を取得"""
+    cfg = SERVICE_CATEGORIES.get(category, {})
+    return cfg.get('url_prefix', category)
+
+
+def detail_url(o: dict) -> str:
+    """事業所レコードから詳細ページのURLパスを生成
+    例: /caremanager/mhlw_kaigo_0170102313_430.html
+    将来 home-help を追加したら /home-help/... も自動で生成される
+    """
+    category = get_category(o)
+    prefix = category_url_prefix(category)
+    slug = office_slug(o['office_id'])
+    return f'/{prefix}/{slug}.html'
+
+
+def category_index_url(category: str) -> str:
+    """カテゴリトップのURL。例: /caremanager/"""
+    prefix = category_url_prefix(category)
+    return f'/{prefix}/'
 
 
 def city_slug(city_name: str) -> str:
@@ -227,7 +269,8 @@ SEARCH_JS = """\
     }).slice(0,30);
     if(!hits.length){results.innerHTML='<p style="color:#999">該当する事業所が見つかりません</p>';return;}
     var html=hits.map(function(o){
-      return '<div class="card" style="margin-bottom:8px"><h3><a href="/office/'+o.slug+'.html">'+esc(o.n)+'</a></h3>'
+      var cat=o.cat||'caremanager';
+      return '<div class="card" style="margin-bottom:8px"><h3><a href="/'+cat+'/'+o.slug+'.html">'+esc(o.n)+'</a></h3>'
         +'<div class="meta"><span>'+esc(o.a)+'</span>'
         +(o.tel?'<span>TEL: '+esc(o.tel)+'</span>':'')
         +'</div></div>';
@@ -328,11 +371,29 @@ def make_footer(pref_data):
 # ページ生成関数
 # =============================================================
 
-def build_index(offices_by_pref, pref_data, total_count):
+def build_index(offices_by_pref, pref_data, total_count, offices_by_category):
     """トップページ"""
     title = f'{SITE_NAME}｜全国{total_count:,}件の{ENTITY_TYPE}を検索'
     desc = f'全国{total_count:,}件の{ENTITY_TYPE}を都道府県・市区町村から検索できます。住所・電話番号・営業日を掲載。'
     canonical = f'{SITE_URL}/'
+
+    # サービスカテゴリ分岐（将来 home-help / day-service 等が増えたら自動で並ぶ）
+    category_cards = ''
+    for cat, cat_offices in offices_by_category.items():
+        cat_cfg = SERVICE_CATEGORIES.get(cat, {})
+        if not cat_cfg.get('enabled', True):
+            continue
+        cat_label = cat_cfg.get('label', cat)
+        cat_desc = cat_cfg.get('description', '')
+        cnt = len(cat_offices)
+        category_cards += f'''<a href="{category_index_url(cat)}" class="card" style="text-decoration:none;color:inherit">
+  <h3 style="font-size:1.1em;color:#1a6e3c">{h(cat_label)}</h3>
+  <div class="meta">
+    <div style="font-size:1.4em;font-weight:bold;color:#1a6e3c">{cnt:,}<span style="font-size:0.7em;color:#888">件</span></div>
+    <div style="color:#666;font-size:0.9em">{h(cat_desc)}</div>
+  </div>
+</a>
+'''
 
     # 地域ブロック別リンク
     region_html = ''
@@ -355,6 +416,11 @@ def build_index(offices_by_pref, pref_data, total_count):
   <div class="stats-bar">
     <div class="stat-box"><div class="num">{total_count:,}</div><div class="label">掲載{ENTITY_NAME}数</div></div>
     <div class="stat-box"><div class="num">47</div><div class="label">都道府県</div></div>
+  </div>
+
+  <h2 style="margin-top:32px;font-size:1.2em">サービスカテゴリから探す</h2>
+  <div class="card-grid">
+    {category_cards}
   </div>
 
   <h2 style="margin-top:32px;font-size:1.2em">都道府県から探す</h2>
@@ -387,9 +453,8 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
     cards = ''
     sorted_offices = sorted(offices, key=lambda o: (o.get('city', ''), o.get('name', '')))
     for o in sorted_offices:
-        oslug = office_slug(o['office_id'])
         cards += f'''<div class="card">
-  <h3><a href="/office/{oslug}.html">{h(o.get("name"))}</a></h3>
+  <h3><a href="{detail_url(o)}">{h(o.get("name"))}</a></h3>
   <div class="meta">
     <span>{h(o.get("address"))}</span><br>
     {f'<span>TEL: {h(o.get("tel"))}</span>' if o.get("tel") else ''}
@@ -442,10 +507,9 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
     cards = ''
     sorted_offices = sorted(offices, key=lambda o: o.get('name', ''))
     for o in sorted_offices:
-        oslug = office_slug(o['office_id'])
         bdays = o.get('business_days_text', '')
         cards += f'''<div class="card">
-  <h3><a href="/office/{oslug}.html">{h(o.get("name"))}</a></h3>
+  <h3><a href="{detail_url(o)}">{h(o.get("name"))}</a></h3>
   <div class="meta">
     <span>{h(o.get("address"))}</span><br>
     {f'<span>TEL: {h(o.get("tel"))}</span>' if o.get("tel") else ''}
@@ -475,19 +539,23 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
 
 def build_office_page(o, pref_name, pref_data):
     """事業所詳細ページ"""
-    oslug = office_slug(o['office_id'])
     pref_code = o.get('pref_code', '')
     pslug = PREF_SLUG.get(pref_code, pref_code)
     city_name_val = o.get('city', '')
     cslug = city_slug(city_name_val)
 
+    category = get_category(o)
+    cat_cfg = SERVICE_CATEGORIES.get(category, {})
+    cat_label = cat_cfg.get('label', ENTITY_TYPE)
+
     name = o.get('name', '')
-    title = f'{name} | {city_name_val}（{pref_name}）の{ENTITY_TYPE} | {SITE_NAME}'
+    title = f'{name} | {city_name_val}（{pref_name}）の{cat_label} | {SITE_NAME}'
     desc = f'{name}（{pref_name}{city_name_val}）の情報。住所・電話番号・営業日・法人情報を掲載。'
-    canonical = f'{SITE_URL}/office/{oslug}.html'
+    canonical = f'{SITE_URL}{detail_url(o)}'
 
     bc = make_breadcrumb([
         ('トップ', '/'),
+        (cat_label, category_index_url(category)),
         (pref_name, f'/pref/{pslug}.html'),
         (city_name_val, f'/pref/{pslug}/{cslug}.html'),
         (name, ''),
@@ -584,6 +652,60 @@ def build_office_page(o, pref_name, pref_data):
     return make_head(title, desc, canonical, json_ld_tag) + body
 
 
+def build_category_index(category, cat_offices, offices_by_pref, pref_data):
+    """サービスカテゴリのトップページ（/caremanager/index.html 等）
+
+    将来 /home-help/ /day-service/ 等を追加したとき、同じ関数でそれぞれの
+    カテゴリランディングを生成できる。
+    """
+    cat_cfg = SERVICE_CATEGORIES.get(category, {})
+    cat_label = cat_cfg.get('label', ENTITY_TYPE)
+    cat_desc = cat_cfg.get('description', f'{cat_label}を検索')
+    n = len(cat_offices)
+    title = f'{cat_label}を探す｜全国{n:,}件 | {SITE_NAME}'
+    desc = f'全国{n:,}件の{cat_label}を都道府県・市区町村から検索できます。'
+    canonical = f'{SITE_URL}{category_index_url(category)}'
+
+    bc = make_breadcrumb([('トップ', '/'), (cat_label, '')])
+
+    # このカテゴリに属する事業所を都道府県別に集計
+    cat_by_pref = defaultdict(int)
+    for o in cat_offices:
+        cat_by_pref[o.get('pref_code', '')] += 1
+
+    region_html = ''
+    for region_name, codes in REGIONS:
+        links = []
+        for code in codes:
+            slug = PREF_SLUG.get(code, code)
+            name = pref_data.get(code, {}).get('name', PREF_CODE_TO_NAME.get(code, ''))
+            cnt = cat_by_pref.get(code, 0)
+            if cnt > 0:
+                links.append(f'<a href="/pref/{slug}.html" class="pref-link">{h(name)} ({cnt})</a>')
+        if links:
+            region_html += f'<div class="region-section"><h3>{h(region_name)}</h3><div class="pref-grid">{"".join(links)}</div></div>\n'
+
+    body = f"""<body>
+{make_header()}
+{bc}
+<div class="container">
+  <h1>{h(cat_label)}を探す</h1>
+  <p style="margin:12px 0;font-size:1.05em">{h(cat_desc)}</p>
+  <p style="margin-bottom:20px;color:#666">全国<strong>{n:,}件</strong>を掲載しています。</p>
+
+  <div class="stats-bar">
+    <div class="stat-box"><div class="num">{n:,}</div><div class="label">{h(cat_label)}</div></div>
+    <div class="stat-box"><div class="num">47</div><div class="label">都道府県</div></div>
+  </div>
+
+  <h2 style="margin-top:32px;font-size:1.2em">都道府県から探す</h2>
+  {region_html}
+</div>
+{make_footer(pref_data)}"""
+
+    return make_head(title, desc, canonical) + body
+
+
 def build_about_page(pref_data, total_count):
     """運営者情報ページ"""
     title = f'運営者情報 | {SITE_NAME}'
@@ -631,6 +753,7 @@ def generate_search_json(offices_by_pref, search_dir):
             ]))
             entries.append({
                 'slug': office_slug(o['office_id']),
+                'cat': get_category(o),
                 'n': o.get('name', ''),
                 'nk': o.get('name_kana', ''),
                 'c': o.get('city', ''),
@@ -660,6 +783,7 @@ def generate_geo_json(offices, path):
         if lat and lng:
             geo.append({
                 'id': office_slug(o['office_id']),
+                'cat': get_category(o),
                 'n': o.get('name', ''),
                 'pc': o.get('pref_code', ''),
                 'cc': o.get('city_code', ''),
@@ -698,9 +822,16 @@ def generate_sitemap(offices, offices_by_pref, city_urls, dist_dir):
         urls.append((f'{SITE_URL}/pref/{slug}.html', '0.8', 'weekly'))
     for cu in city_urls:
         urls.append((cu, '0.7', 'weekly'))
+    # カテゴリトップ
+    seen_cats = set()
     for o in offices:
-        oslug = office_slug(o['office_id'])
-        urls.append((f'{SITE_URL}/office/{oslug}.html', '0.5', 'monthly'))
+        cat = get_category(o)
+        if cat not in seen_cats:
+            seen_cats.add(cat)
+            urls.append((f'{SITE_URL}{category_index_url(cat)}', '0.9', 'weekly'))
+    # 事業所詳細
+    for o in offices:
+        urls.append((f'{SITE_URL}{detail_url(o)}', '0.5', 'monthly'))
     urls.append((f'{SITE_URL}/about.html', '0.3', 'yearly'))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
@@ -777,7 +908,14 @@ def build_site():
     print(f'都道府県数: {len(offices_by_pref)}')
 
     # 出力ディレクトリ作成
-    for d in [DIST_DIR, DIST_DIR / 'pref', DIST_DIR / 'office', DIST_DIR / 'static', DIST_DIR / 'data']:
+    # service_category 別にカテゴリディレクトリを作成（将来 home-help 等が追加されても自動対応）
+    category_dirs = set()
+    for o in offices:
+        category_dirs.add(category_url_prefix(get_category(o)))
+    base_dirs = [DIST_DIR, DIST_DIR / 'pref', DIST_DIR / 'static', DIST_DIR / 'data']
+    for prefix in category_dirs:
+        base_dirs.append(DIST_DIR / prefix)
+    for d in base_dirs:
         d.mkdir(parents=True, exist_ok=True)
 
     # CSS/JS
@@ -785,8 +923,13 @@ def build_site():
     (DIST_DIR / 'static' / 'search.js').write_text(SEARCH_JS, encoding='utf-8')
     print('CSS/JS 生成完了')
 
+    # サービスカテゴリ別グルーピング（トップページ + カテゴリトップで使用）
+    offices_by_category = defaultdict(list)
+    for o in offices:
+        offices_by_category[get_category(o)].append(o)
+
     # トップページ
-    idx = build_index(offices_by_pref, pref_data, len(offices))
+    idx = build_index(offices_by_pref, pref_data, len(offices), offices_by_category)
     (DIST_DIR / 'index.html').write_text(idx, encoding='utf-8')
     print('index.html 生成完了')
 
@@ -820,14 +963,22 @@ def build_site():
 
     print(f'都道府県ページ {len(offices_by_pref)}枚 + 市区町村ページ {city_page_count}枚 生成完了')
 
-    # 事業所詳細ページ
+    # 事業所詳細ページ（service_category 別にディレクトリ分割）
     for o in offices:
         oslug = office_slug(o['office_id'])
         pref_code = o.get('pref_code', '')
         pref_name = pref_data.get(pref_code, {}).get('name', '')
         html = build_office_page(o, pref_name, pref_data)
-        (DIST_DIR / 'office' / f'{oslug}.html').write_text(html, encoding='utf-8')
+        prefix = category_url_prefix(get_category(o))
+        (DIST_DIR / prefix / f'{oslug}.html').write_text(html, encoding='utf-8')
     print(f'詳細ページ {len(offices):,}枚 生成完了')
+
+    # カテゴリトップページ（/caremanager/, /home-help/ 等）
+    for cat, cat_offices in offices_by_category.items():
+        html = build_category_index(cat, cat_offices, offices_by_pref, pref_data)
+        prefix = category_url_prefix(cat)
+        (DIST_DIR / prefix / 'index.html').write_text(html, encoding='utf-8')
+    print(f'カテゴリトップ {len(offices_by_category)}枚 生成完了')
 
     # 運営者情報ページ
     about = build_about_page(pref_data, len(offices))
@@ -882,7 +1033,13 @@ def build_site():
     print(f'  ビルド完了 品質チェック')
     print(f'{"=" * 60}')
     pref_pages = len(list((DIST_DIR / 'pref').glob('*.html')))
-    office_pages = len(list((DIST_DIR / 'office').glob('*.html')))
+    # カテゴリ別に詳細ページを集計（index.html を除外）
+    office_pages = 0
+    for prefix in category_dirs:
+        office_pages += sum(
+            1 for p in (DIST_DIR / prefix).glob('*.html')
+            if p.name != 'index.html'
+        )
     search_files = len(list(search_dir.glob('*.json')))
     print(f'  総事業所数: {len(offices):,}')
     print(f'  都道府県ページ: {pref_pages}')

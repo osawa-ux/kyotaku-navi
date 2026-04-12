@@ -223,7 +223,21 @@ def verify():
         with open(NORMALIZE_OUTPUT, encoding="utf-8") as f:
             normalized_count = len(json.load(f))
 
-    office_pages = len(list((DIST_DIR / "office").glob("*.html"))) if (DIST_DIR / "office").exists() else 0
+    # service_category 別のディレクトリをすべて集計（index.html 除外）
+    office_pages = 0
+    if NORMALIZE_OUTPUT.exists():
+        with open(NORMALIZE_OUTPUT, encoding="utf-8") as f:
+            records = json.load(f)
+        category_prefixes = set()
+        for r in records:
+            cat = r.get("service_category", "caremanager")
+            category_prefixes.add(cat)
+        for prefix in category_prefixes:
+            cat_dir = DIST_DIR / prefix
+            if cat_dir.exists():
+                office_pages += sum(
+                    1 for p in cat_dir.glob("*.html") if p.name != "index.html"
+                )
     check(
         "詳細ページ数 = 正規化件数",
         office_pages == normalized_count,
@@ -361,9 +375,21 @@ def main():
         with open(NORMALIZE_OUTPUT, encoding="utf-8") as f:
             count = len(json.load(f))
         print(f"  事業所数: {count:,}件")
-    if do_build and (DIST_DIR / "office").exists():
-        pages = len(list((DIST_DIR / "office").glob("*.html")))
-        print(f"  詳細ページ: {pages:,}枚")
+    if do_build:
+        # カテゴリ別の詳細ページ数を合算
+        pages = 0
+        if NORMALIZE_OUTPUT.exists():
+            with open(NORMALIZE_OUTPUT, encoding="utf-8") as f:
+                _records = json.load(f)
+            _cats = set(r.get("service_category", "caremanager") for r in _records)
+            for _cat in _cats:
+                _dir = DIST_DIR / _cat
+                if _dir.exists():
+                    pages += sum(
+                        1 for p in _dir.glob("*.html") if p.name != "index.html"
+                    )
+        if pages:
+            print(f"  詳細ページ: {pages:,}枚")
     if do_build:
         print(f"  出力先: {DIST_DIR}/")
     if not verify_ok:

@@ -9,7 +9,20 @@
   "entity_type": "居宅介護支援事業所",
   "care_type": "居宅介護支援",
   "service_code": "430",
-  "entity_detail_prefix": "office",
+  "entity_detail_prefix": "caremanager",
+
+  "_comment_service_categories": "将来 home-help, day-service, visit-nursing 等を追加予定。各カテゴリは独自のURL prefix を持ち、同一ドメイン内で並列展開される",
+  "default_service_category": "caremanager",
+  "service_categories": {
+    "caremanager": {
+      "label": "ケアマネジャー事業所",
+      "short_label": "ケアマネ",
+      "service_code": "430",
+      "url_prefix": "caremanager",
+      "description": "居宅介護支援事業所（ケアマネジャー）を検索",
+      "enabled": true
+    }
+  },
 
   "data_file": "data/offices_kyotaku.json",
   "search_data_dir": "data/search",
