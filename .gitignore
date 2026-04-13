@@ -4,6 +4,7 @@ data_sources/processed/
 data_sources/exports/
 data_sources/reports/
 data/
+dist/
 
 # Python
 __pycache__/
