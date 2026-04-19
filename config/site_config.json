@@ -4,13 +4,11 @@
   "site_description": "全国36,491件の居宅介護支援事業所を検索できるポータルサイト",
   "site_url": "https://care.zaitaku-navi.com",
   "cname_domain": "care.zaitaku-navi.com",
-
   "entity_name": "事業所",
   "entity_type": "居宅介護支援事業所",
   "care_type": "居宅介護支援",
   "service_code": "430",
   "entity_detail_prefix": "caremanager",
-
   "_comment_service_categories": "将来 home-help, day-service, visit-nursing 等を追加予定。各カテゴリは独自のURL prefix を持ち、同一ドメイン内で並列展開される",
   "default_service_category": "caremanager",
   "service_categories": {
@@ -23,24 +21,20 @@
       "enabled": true
     }
   },
-
   "data_file": "data/offices_kyotaku.json",
   "search_data_dir": "data/search",
   "geo_data_file": "data/offices_geo.json",
-
   "page_routes": {
     "index": "index.html",
     "pref": "pref/{slug}.html",
     "city": "pref/{pref_slug}/{city_slug}.html",
     "office": "office/{office_code}.html"
   },
-
   "target_users": [
     "ケアマネジャー（他事業所への紹介・連携先調査）",
     "患者・利用者家族（事業所を探している方）",
     "医療・介護関係者（連携先の確認）"
   ],
-
   "display_fields": {
     "list_view": [
       "name",
@@ -72,29 +66,32 @@
       "remarks_raw"
     ]
   },
-
   "search_config": {
-    "primary_keys": ["prefecture", "city"],
-    "free_text_fields": ["name", "name_kana", "corporation_name", "address"],
+    "primary_keys": [
+      "prefecture",
+      "city"
+    ],
+    "free_text_fields": [
+      "name",
+      "name_kana",
+      "corporation_name",
+      "address"
+    ],
     "geo_search": true
   },
-
   "paid_plan": {
     "enabled": false,
     "note": "有料プランは将来実装（確認済みバッジ、問い合わせ機能等）"
   },
-
   "attribution": {
     "source": "介護サービス情報公表システム（厚生労働省）のデータを基に作成",
     "license": "CC BY 4.0",
     "source_url": "https://www.mhlw.go.jp/stf/kaigo-kouhyou_opendata.html"
   },
-
   "analytics": {
-    "ga4_id": null,
+    "ga4_id": "G-ZFDTGC09X4",
     "search_console": null
   },
-
   "build": {
     "output_dir": "dist",
     "template_dir": "templates",
