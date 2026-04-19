@@ -2,15 +2,15 @@
 
 全国の居宅介護支援事業所（ケアマネジャー事業所）を検索できる静的ポータルサイト。
 
-- **公開予定URL**: https://care.zaitaku-navi.com
+- **公開URL**: https://care.zaitaku-navi.com （**本番稼働中・HTTPS強制**、2026-04-20 完全公開）
 - **親ドメイン**: `zaitaku-navi.com`（`clinic.` / `kango.` / `care.` / `shika.` / `welfare.` を並列展開予定）
 - **データソース**: 厚生労働省 介護サービス情報公表システム オープンデータ (CC BY 4.0)
 - **掲載件数**: 36,491件（全47都道府県、2025年時点）
-- **ステータス**: ビルド完成・デプロイ手前まで完了
+- **ステータス**: 本番公開済み / GA4 (G-ZFDTGC09X4) 計測中
 
 ## 現在の進捗
 
-### ✅ 完了
+### ✅ 完了（2026-04-20時点）
 - [x] データ構造設計 (`docs/kyotaku-care-support-data-design.md`)
 - [x] Pydanticスキーマ (`models/office_schema.py`) — OfficeMaster / KyotakuFeatures / OfficeWeb / ScrapeAudit
 - [x] CSVダウンロード (`scripts/download_csv.py`)
@@ -22,18 +22,17 @@
 - [x] `/caremanager/` カテゴリ別URL構造（将来 home-help / day-service 等を並列展開可能）
 - [x] パンくずにカテゴリ階層追加
 - [x] トップページにカテゴリ選択UI追加
+- [x] Cloudflare DNS `CNAME care → osawa-ux.github.io` 追加
+- [x] `gh-pages` ブランチ作成・`dist/` push
+- [x] GitHub Pages 有効化・カスタムドメイン設定
+- [x] **HTTPS 強制有効化**（`https_enforced=true`、2026-04-20）
+- [x] `scripts/spot_check.sh` で 17/17 ALL_GREEN（HTTPS）
+- [x] GA4 測定ID `G-ZFDTGC09X4` 導入
 
-### 🟡 進行中（次回再開ポイント）
-- [ ] **Cloudflare DNS に `CNAME care → osawa-ux.github.io` 追加** ← 次はここから
-- [ ] `gh-pages` ブランチ作成・`dist/` を push
-- [ ] GitHub Pages 有効化・カスタムドメイン設定
-- [ ] HTTPS 強制有効化
-- [ ] 動作確認 (`curl -I https://care.zaitaku-navi.com/`)
-
-### 🔵 公開後対応
-- [ ] GA4 計測ID設定・再ビルド
-- [ ] Search Console 登録・sitemap 送信
+### 🔵 公開後対応（残タスク）
+- [ ] Search Console プロパティ登録（`https://care.zaitaku-navi.com/`）・sitemap 送信
 - [ ] 定期ビルド自動化（年2回のCSV更新対応、GitHub Actions cron）
+- [ ] Cloudflare Proxy (proxied:true) 切替検討
 
 ## ディレクトリ構成
 
