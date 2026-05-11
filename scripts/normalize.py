@@ -256,6 +256,13 @@ def normalize_row(row: list[str], cols: list[str], retrieved_at: str) -> dict:
         "meets_kaigo_standard": parse_bool_flag(col(21)),
         "meets_shogai_standard": parse_bool_flag(col(22)),
         "remarks_raw": clean_str(col(23)),
+        # --- 代理指標フィルタ（DifferentiatorFilters） ---
+        # 公表CSVには含まれない。kaigokensaku詳細データから補完する。
+        # null = 未取得/不明、True = あり、False = なし
+        "terminal_care_addon": None,      # ターミナルケアマネジメント加算
+        "specific_office_addon": None,    # 特定事業所加算（I/II/III/A のいずれか）
+        "emergency_phone_support": None,  # 緊急時電話連絡対応
+        "chief_caremanager_count": None,  # 主任ケアマネ配置数（0以上のint、Noneは未取得）
     }
 
 

@@ -79,6 +79,40 @@
     ],
     "geo_search": true
   },
+  "differentiator_filters": {
+    "_note": "公表データ由来の代理指標フィルタ。4属性は介護サービス情報公表システムの公表項目に基づく参考情報であり、医療依存度の確定的な判定ではありません。",
+    "_data_status": "kaigokensaku詳細データ未取得のため現在はnull。詳細データ取得後に自動で有効化されます。",
+    "filters": {
+      "terminal_care_addon": {
+        "label": "ターミナルケア対応",
+        "description": "ターミナルケアマネジメント加算の算定実績あり（公表データ基準）",
+        "icon": "heart",
+        "data_field": "terminal_care_addon",
+        "enabled": true
+      },
+      "specific_office_addon": {
+        "label": "特定事業所加算あり",
+        "description": "特定事業所加算（I/II/III/A）の算定あり。専門性・体制の代理指標",
+        "icon": "star",
+        "data_field": "specific_office_addon",
+        "enabled": true
+      },
+      "emergency_phone_support": {
+        "label": "緊急時連絡可",
+        "description": "緊急時の電話連絡対応あり（公表データ基準）",
+        "icon": "phone",
+        "data_field": "emergency_phone_support",
+        "enabled": true
+      },
+      "chief_caremanager_count": {
+        "label": "主任ケアマネ配置",
+        "description": "主任介護支援専門員が1名以上在籍",
+        "icon": "person",
+        "data_field": "chief_caremanager_count",
+        "enabled": true
+      }
+    }
+  },
   "paid_plan": {
     "enabled": false,
     "note": "有料プランは将来実装（確認済みバッジ、問い合わせ機能等）"

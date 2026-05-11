@@ -74,6 +74,11 @@ SERVICE_CATEGORIES = CFG.get('service_categories', {
 DATA_FILE = BASE_DIR / 'data' / 'normalized' / 'offices_430.json'
 DIST_DIR = BASE_DIR / CFG.get('build', {}).get('output_dir', 'dist')
 
+# --- 代理指標フィルタ設定 ---
+DIFF_FILTERS_CFG = CFG.get('differentiator_filters', {}).get('filters', {})
+# フィルタ順序を固定（config記述順）
+DIFF_FILTER_KEYS = list(DIFF_FILTERS_CFG.keys())
+
 # =============================================================
 # 都道府県マスタ（訪問診療ナビと完全同一）
 # =============================================================
@@ -242,11 +247,33 @@ footer a{color:#aed581}
 .portal-network li a:hover{text-decoration:underline}
 .portal-network li{font-size:0.82em;color:#999}
 
+/* Differentiator filter UI */
+.diff-filters{margin:16px 0;padding:14px 16px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px}
+.diff-filters legend{font-size:0.9em;font-weight:bold;color:#1a6e3c;margin-bottom:8px;display:block}
+.diff-filters .filter-options{display:flex;flex-wrap:wrap;gap:8px 16px}
+.diff-filters label{display:flex;align-items:center;gap:6px;font-size:0.9em;cursor:pointer;user-select:none}
+.diff-filters input[type=checkbox]{width:16px;height:16px;accent-color:#1a6e3c;cursor:pointer}
+.diff-filters .filter-note{font-size:0.75em;color:#666;margin-top:6px}
+.filter-count{font-size:0.85em;color:#1a6e3c;margin:6px 0 0;font-weight:bold}
+
+/* Attribute badges */
+.badge-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:0.78em;font-weight:bold;line-height:1.4}
+.badge-terminal{background:#fce4ec;color:#c62828}
+.badge-specific{background:#e3f2fd;color:#1565c0}
+.badge-emergency{background:#fff8e1;color:#e65100}
+.badge-chief{background:#f3e5f5;color:#6a1b9a}
+.badge-na{background:#f5f5f5;color:#9e9e9e}
+
+/* Card hidden by filter */
+.care-card-hidden{display:none}
+
 /* Responsive */
 @media(max-width:600px){
   .card-grid{grid-template-columns:1fr}
   header .header-inner{flex-direction:column;align-items:flex-start}
   .info-table th{width:100px}
+  .diff-filters .filter-options{flex-direction:column;gap:6px}
 }
 """
 
@@ -291,8 +318,149 @@ SEARCH_JS = """\
 """
 
 # =============================================================
+# 代理指標フィルタ JavaScript（client-side show/hide）
+# =============================================================
+
+FILTER_JS = """\
+(function(){
+  'use strict';
+  var checkboxes=document.querySelectorAll('[data-filter]');
+  if(!checkboxes.length)return;
+  var countEl=document.getElementById('filter-count');
+
+  function applyFilters(){
+    var active=[];
+    checkboxes.forEach(function(cb){if(cb.checked)active.push(cb.dataset.filter);});
+    var cards=document.querySelectorAll('.caremanager-card');
+    var shown=0;
+    cards.forEach(function(card){
+      var hide=false;
+      if(active.length){
+        active.forEach(function(f){
+          var val=card.dataset[toCamel(f)];
+          // trueのカードのみ表示、null(未取得)はfilter対象外
+          if(val!=='true')hide=true;
+        });
+      }
+      if(hide){card.classList.add('care-card-hidden');}
+      else{card.classList.remove('care-card-hidden');shown++;}
+    });
+    if(countEl){
+      if(active.length){
+        countEl.textContent=shown+'件を表示中';
+        countEl.style.display='block';
+      }else{
+        countEl.style.display='none';
+      }
+    }
+  }
+
+  function toCamel(s){
+    // terminal_care_addon → terminalCareAddon (for dataset access)
+    return s.replace(/_([a-z])/g,function(_,c){return c.toUpperCase();});
+  }
+
+  checkboxes.forEach(function(cb){cb.addEventListener('change',applyFilters);});
+})();
+"""
+
+
+# =============================================================
 # HTML生成ヘルパー
 # =============================================================
+
+def make_diff_filter_ui(offices_for_page: list) -> str:
+    """代理指標フィルタUIを生成する。
+    対象事業所リストを受け取り、データが存在する属性のみチェックボックスを有効化する。
+    全事業所でnullの属性は表示するが、「※データ準備中」注記を付ける。
+    """
+    if not DIFF_FILTER_KEYS:
+        return ''
+
+    # 各フィルタのデータ充填状況を確認
+    fill_status = {}
+    for key in DIFF_FILTER_KEYS:
+        count_true = sum(1 for o in offices_for_page if o.get(key) is True)
+        count_nonnull = sum(1 for o in offices_for_page if o.get(key) is not None)
+        fill_status[key] = {'true': count_true, 'nonnull': count_nonnull}
+
+    options_html = ''
+    for key in DIFF_FILTER_KEYS:
+        fcfg = DIFF_FILTERS_CFG.get(key, {})
+        if not fcfg.get('enabled', True):
+            continue
+        label = fcfg.get('label', key)
+        has_data = fill_status[key]['nonnull'] > 0
+        count_true = fill_status[key]['true']
+
+        if has_data:
+            options_html += f'<label><input type="checkbox" data-filter="{h(key)}"> {h(label)} <span style="color:#888;font-size:0.85em">({count_true}件)</span></label>\n'
+        else:
+            # データ未取得の属性はラベルのみ表示（無効化）
+            options_html += f'<label style="color:#aaa"><input type="checkbox" data-filter="{h(key)}" disabled> {h(label)} <span style="font-size:0.8em">準備中</span></label>\n'
+
+    has_any_data = any(fill_status[k]['nonnull'] > 0 for k in DIFF_FILTER_KEYS)
+    note_text = '公表データに基づく代理指標です（医療依存度の確定判定ではありません）。' if has_any_data else '代理指標データは準備中です。入力次第フィルタが有効になります。'
+
+    return f'''<fieldset class="diff-filters" role="search" aria-label="事業所の特性で絞り込む">
+  <legend>特性で絞り込む</legend>
+  <div class="filter-options">
+    {options_html}
+  </div>
+  <div class="filter-note">{h(note_text)}</div>
+  <div id="filter-count" class="filter-count" style="display:none"></div>
+</fieldset>
+'''
+
+
+def make_office_badges(o: dict) -> str:
+    """事業所の代理指標バッジHTMLを生成する。nullの属性は表示しない。"""
+    if not DIFF_FILTER_KEYS:
+        return ''
+
+    badges = []
+    badge_map = {
+        'terminal_care_addon': ('badge-terminal', 'ターミナルケア対応'),
+        'specific_office_addon': ('badge-specific', '特定事業所加算あり'),
+        'emergency_phone_support': ('badge-emergency', '緊急時連絡可'),
+        'chief_caremanager_count': ('badge-chief', '主任ケアマネ配置'),
+    }
+
+    for key in DIFF_FILTER_KEYS:
+        val = o.get(key)
+        if val is None:
+            continue  # 未取得は表示しない
+        cls, label = badge_map.get(key, ('badge-na', key))
+        if key == 'chief_caremanager_count':
+            # countフィールド: 0以上のint
+            if isinstance(val, int) and val > 0:
+                badges.append(f'<span class="badge {h(cls)}">{h(label)}（{val}名）</span>')
+        elif val is True:
+            badges.append(f'<span class="badge {h(cls)}">{h(label)}</span>')
+
+    if not badges:
+        return ''
+    return f'<div class="badge-row" aria-label="事業所の特性">{"".join(badges)}</div>'
+
+
+def office_data_attrs(o: dict) -> str:
+    """事業所カード用のdata-attributeを生成する（フィルタJS用）。"""
+    parts = []
+    for key in DIFF_FILTER_KEYS:
+        val = o.get(key)
+        # data属性名: terminal_care_addon → data-terminal-care-addon
+        attr_name = 'data-' + key.replace('_', '-')
+        if val is None:
+            parts.append(f'{attr_name}="null"')
+        elif key == 'chief_caremanager_count':
+            if isinstance(val, int) and val > 0:
+                parts.append(f'{attr_name}="true"')
+            else:
+                parts.append(f'{attr_name}="false"')
+        else:
+            parts.append(f'{attr_name}="{"true" if val else "false"}"')
+    return ' '.join(parts)
+
 
 def make_head(title, desc, canonical, extra_head=''):
     """<head> タグを生成。訪問診療ナビと同一パターン"""
@@ -467,19 +635,23 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
         city_html += f'<a href="/pref/{slug}/{cslug}.html" class="city-link">{h(cname)} ({len(coffices)})</a>'
     city_html += '</div>'
 
-    # 事業所一覧カード
+    # 事業所一覧カード（data-attributeを埋め込む）
     cards = ''
     sorted_offices = sorted(offices, key=lambda o: (o.get('city', ''), o.get('name', '')))
     for o in sorted_offices:
-        cards += f'''<div class="card">
+        data_attrs = office_data_attrs(o)
+        cards += f'''<div class="card caremanager-card" {data_attrs}>
   <h3><a href="{detail_url(o)}">{h(o.get("name"))}</a></h3>
   <div class="meta">
     <span>{h(o.get("address"))}</span><br>
     {f'<span>TEL: {h(o.get("tel"))}</span>' if o.get("tel") else ''}
     {f'<span>{h(o.get("corporation_name"))}</span>' if o.get("corporation_name") else ''}
   </div>
+  {make_office_badges(o)}
 </div>
 '''
+
+    filter_ui = make_diff_filter_ui(offices)
 
     body = f"""<body data-pref-code="{pref_code}">
 {make_header()}
@@ -493,6 +665,8 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
     <div id="search-results"></div>
   </div>
 
+  {filter_ui}
+
   <h2 style="margin-top:24px;font-size:1.1em">市区町村から探す</h2>
   {city_html}
 
@@ -503,7 +677,7 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
 </div>
 {make_footer(pref_data)}"""
 
-    extra = '<script src="/static/search.js" defer></script>'
+    extra = '<script src="/static/search.js" defer></script><script src="/static/filter.js" defer></script>'
     return make_head(title, desc, canonical, extra) + body
 
 
@@ -526,7 +700,8 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
     sorted_offices = sorted(offices, key=lambda o: o.get('name', ''))
     for o in sorted_offices:
         bdays = o.get('business_days_text', '')
-        cards += f'''<div class="card">
+        data_attrs = office_data_attrs(o)
+        cards += f'''<div class="card caremanager-card" {data_attrs}>
   <h3><a href="{detail_url(o)}">{h(o.get("name"))}</a></h3>
   <div class="meta">
     <span>{h(o.get("address"))}</span><br>
@@ -534,8 +709,11 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
     {f'<span>営業: {h(bdays)}</span>' if bdays else ''}
     {f'<span>{h(o.get("corporation_name"))}</span>' if o.get("corporation_name") else ''}
   </div>
+  {make_office_badges(o)}
 </div>
 '''
+
+    filter_ui = make_diff_filter_ui(offices)
 
     body = f"""<body>
 {make_header()}
@@ -543,6 +721,8 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
 <div class="container">
   <h1>{h(city_name_val)}（{h(pref_name)}）の{ENTITY_TYPE}</h1>
   <p style="margin:8px 0;color:#666">{h(city_name_val)}には<strong>{n}件</strong>の{ENTITY_TYPE}があります。</p>
+
+  {filter_ui}
 
   <div class="card-grid">
     {cards}
@@ -552,7 +732,8 @@ def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
 </div>
 {make_footer(pref_data)}"""
 
-    return make_head(title, desc, canonical) + body
+    extra = '<script src="/static/filter.js" defer></script>'
+    return make_head(title, desc, canonical, extra) + body
 
 
 def build_office_page(o, pref_name, pref_data):
@@ -648,6 +829,8 @@ def build_office_page(o, pref_name, pref_data):
 
     json_ld_tag = f'<script type="application/ld+json">{json.dumps(json_ld_data, ensure_ascii=False)}</script>'
 
+    badges_html = make_office_badges(o)
+
     body = f"""<body>
 {make_header()}
 {bc}
@@ -655,6 +838,7 @@ def build_office_page(o, pref_name, pref_data):
   <div class="detail-header">
     <h1>{h(name)}</h1>
     {f'<div class="kana">{h(o.get("name_kana"))}</div>' if o.get("name_kana") else ''}
+    {badges_html}
   </div>
 
   {table_html}
@@ -939,6 +1123,7 @@ def build_site():
     # CSS/JS
     (DIST_DIR / 'static' / 'style.css').write_text(COMMON_CSS, encoding='utf-8')
     (DIST_DIR / 'static' / 'search.js').write_text(SEARCH_JS, encoding='utf-8')
+    (DIST_DIR / 'static' / 'filter.js').write_text(FILTER_JS, encoding='utf-8')
     print('CSS/JS 生成完了')
 
     # サービスカテゴリ別グルーピング（トップページ + カテゴリトップで使用）
