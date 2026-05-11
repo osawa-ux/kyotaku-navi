@@ -90,7 +90,12 @@
   },
   "analytics": {
     "ga4_id": "G-ZFDTGC09X4",
-    "search_console": null
+    "ga4_property_id": "properties/533645994",
+    "search_console": {
+      "property_url": "https://care.zaitaku-navi.com/",
+      "verification_method": "ga4",
+      "registered_at": null
+    }
   },
   "build": {
     "output_dir": "dist",

@@ -233,6 +233,15 @@ footer a{color:#aed581}
 .search-box input[type=text]{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:4px;font-size:1em}
 .search-results{margin-top:12px}
 
+/* Portal network */
+.portal-network{margin-top:20px;padding-top:16px;border-top:1px solid #555}
+.portal-network h3{font-size:0.9em;color:#ccc;margin-bottom:8px;font-weight:normal;letter-spacing:0.03em}
+.portal-network ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 0}
+.portal-network li{width:100%}
+.portal-network li a{color:#aed581;font-size:0.82em}
+.portal-network li a:hover{text-decoration:underline}
+.portal-network li{font-size:0.82em;color:#999}
+
 /* Responsive */
 @media(max-width:600px){
   .card-grid{grid-template-columns:1fr}
@@ -360,6 +369,15 @@ def make_footer(pref_data):
     <p><strong>{h(SITE_NAME)}</strong> — 全国の{ENTITY_TYPE}を都道府県・市区町村から検索できるポータルサイト</p>
     <div style="margin-top:16px">{''.join(pref_links)}</div>
     <p style="font-size:0.75em;color:#aaa;margin-top:8px">データ出典: {h(ATTRIBUTION)}</p>
+    <section class="portal-network" aria-label="関連サービス">
+      <h3>在宅ナビシリーズ</h3>
+      <ul>
+        <li><a href="https://zaitakuclinic-navi.com/">在宅クリニックを探す</a> — 訪問診療を提供するクリニック一覧</li>
+        <li><a href="https://kango.zaitaku-navi.com/">訪問看護ステーション一覧</a> — 全国の訪問看護を地域から探す</li>
+        <li><a href="https://shika.zaitaku-navi.com/">訪問歯科を探す</a> — 在宅対応の歯科医院を地域から検索</li>
+        <li><a href="https://www.souzoku-zeirishi-navi.com/">相続税理士事務所を探す</a> — 相続を扱う税理士事務所を全国から検索</li>
+      </ul>
+    </section>
     <div class="footer-bottom">&copy; 2025 {h(SITE_NAME)} ({h(OPERATOR_NAME)})</div>
   </div>
 </footer>
