@@ -255,7 +255,11 @@ def main():
     print(f'  {len(all_offices):,}件')
 
     # 出力ディレクトリ
-    feature_dir = DIST_DIR / 'feature'
+    # --demo フラグ時はデモファイルを _demo/feature/ に隔離（本番 dist/ へ混入しない）
+    if args.demo:
+        feature_dir = DIST_DIR / '_demo' / 'feature'
+    else:
+        feature_dir = DIST_DIR / 'feature'
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # ターゲット決定

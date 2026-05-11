@@ -75,7 +75,10 @@ DATA_FILE = BASE_DIR / 'data' / 'normalized' / 'offices_430.json'
 DIST_DIR = BASE_DIR / CFG.get('build', {}).get('output_dir', 'dist')
 
 # --- 代理指標フィルタ設定 ---
-DIFF_FILTERS_CFG = CFG.get('differentiator_filters', {}).get('filters', {})
+_DIFF_CFG = CFG.get('differentiator_filters', {})
+# build_enabled=False の間はフィルタUI・バッジを一切出力しない
+DIFF_FILTERS_BUILD_ENABLED = _DIFF_CFG.get('build_enabled', False)
+DIFF_FILTERS_CFG = _DIFF_CFG.get('filters', {})
 # フィルタ順序を固定（config記述順）
 DIFF_FILTER_KEYS = list(DIFF_FILTERS_CFG.keys())
 
@@ -373,7 +376,10 @@ def make_diff_filter_ui(offices_for_page: list) -> str:
     """代理指標フィルタUIを生成する。
     対象事業所リストを受け取り、データが存在する属性のみチェックボックスを有効化する。
     全事業所でnullの属性は表示するが、「※データ準備中」注記を付ける。
+    build_enabled=False の間は空文字を返す（UI非表示）。
     """
+    if not DIFF_FILTERS_BUILD_ENABLED:
+        return ''  # データ取得前はフィルタUI全体を非表示
     if not DIFF_FILTER_KEYS:
         return ''
 
@@ -414,7 +420,11 @@ def make_diff_filter_ui(offices_for_page: list) -> str:
 
 
 def make_office_badges(o: dict) -> str:
-    """事業所の代理指標バッジHTMLを生成する。nullの属性は表示しない。"""
+    """事業所の代理指標バッジHTMLを生成する。nullの属性は表示しない。
+    build_enabled=False の間は空文字を返す（バッジ非表示）。
+    """
+    if not DIFF_FILTERS_BUILD_ENABLED:
+        return ''  # データ取得前はバッジ全体を非表示
     if not DIFF_FILTER_KEYS:
         return ''
 
@@ -444,7 +454,11 @@ def make_office_badges(o: dict) -> str:
 
 
 def office_data_attrs(o: dict) -> str:
-    """事業所カード用のdata-attributeを生成する（フィルタJS用）。"""
+    """事業所カード用のdata-attributeを生成する（フィルタJS用）。
+    build_enabled=False の間は空文字を返す（data属性不要）。
+    """
+    if not DIFF_FILTERS_BUILD_ENABLED:
+        return ''
     parts = []
     for key in DIFF_FILTER_KEYS:
         val = o.get(key)

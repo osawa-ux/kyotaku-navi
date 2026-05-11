@@ -82,6 +82,8 @@
   "differentiator_filters": {
     "_note": "公表データ由来の代理指標フィルタ。4属性は介護サービス情報公表システムの公表項目に基づく参考情報であり、医療依存度の確定的な判定ではありません。",
     "_data_status": "kaigokensaku詳細データ未取得のため現在はnull。詳細データ取得後に自動で有効化されます。",
+    "build_enabled": false,
+    "_build_enabled_note": "データ取得後に true に変更してリビルドするとフィルタUI・バッジが有効化されます。手順: docs/enable_diff_filters.md 参照。",
     "filters": {
       "terminal_care_addon": {
         "label": "ターミナルケア対応",

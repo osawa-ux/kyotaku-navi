@@ -227,6 +227,18 @@ sitemap URL:  38,201
 全10項目検証 通過
 ```
 
+## 代理指標フィルタの有効化手順
+
+現在 `config/site_config.json` の `differentiator_filters.build_enabled` は `false` に設定されており、
+フィルタUI・バッジは非表示です（Reviewer C1/C2 対応、null データの「準備中」表示を本番から除外）。
+
+詳細手順は `docs/enable_diff_filters.md` を参照。概要は以下の通り:
+
+1. `kaigokensaku` 詳細データを取得し `scripts/normalize.py` で 4 フィールド（`terminal_care_addon` / `specific_office_addon` / `emergency_phone_support` / `chief_caremanager_count`）を充填する
+2. `config/site_config.json` の `"build_enabled": false` を `"build_enabled": true` に変更する
+3. `python build_site.py` でリビルドする（件数 38,403 件維持を確認）
+4. 都道府県ページでフィルタUIが表示されること、事業所ページでバッジが表示されることを確認してからデプロイする
+
 ## ライセンス・出典
 
 - **データ出典**: 介護サービス情報公表システム（厚生労働省）のデータを基に作成
