@@ -18,6 +18,15 @@
   訪問看護ナビ (houmonkango-navi) の normalize_stations.py と
   同一の正規化関数（zen_to_han, normalize_tel, normalize_postal 等）を流用。
   フィールド名は OfficeMaster スキーマに準拠。
+
+代理指標フィルタ (DifferentiatorFilters) の補完:
+  scripts/download_kaigokensaku.py で取得した属性データが
+  data/kaigokensaku/attributes.json に存在する場合、4フィールドを充填する:
+    - terminal_care_addon
+    - specific_office_addon
+    - emergency_phone_support
+    - chief_caremanager_count
+  attributes.json が存在しない場合は全件 null のまま (既存挙動維持)。
 """
 
 import csv
@@ -33,6 +42,9 @@ INPUT_PATH = os.path.join(BASE_DIR, "data", "raw", "jigyosho_430.csv")
 OUTPUT_DIR = os.path.join(BASE_DIR, "data", "normalized")
 OUTPUT_JSONL = os.path.join(OUTPUT_DIR, "offices_430.jsonl")
 OUTPUT_JSON = os.path.join(OUTPUT_DIR, "offices_430.json")
+
+# kaigokensaku 詳細属性ファイル (存在する場合のみ読み込む)
+ATTRS_JSON = os.path.join(BASE_DIR, "data", "kaigokensaku", "attributes.json")
 
 # --- 固定値 ---
 PORTAL_TYPE = "kyotaku"
@@ -266,6 +278,55 @@ def normalize_row(row: list[str], cols: list[str], retrieved_at: str) -> dict:
     }
 
 
+def load_kaigokensaku_attrs() -> dict:
+    """
+    data/kaigokensaku/attributes.json を読み込んで
+    office_code -> attrs の dict を返す。
+    ファイルが存在しない場合は空の dict を返す（既存挙動維持）。
+    """
+    if not os.path.exists(ATTRS_JSON):
+        return {}
+
+    try:
+        with open(ATTRS_JSON, encoding="utf-8") as f:
+            data = json.load(f)
+        offices = data.get("offices", {})
+        meta = data.get("_meta", {})
+        total = meta.get("total_offices", len(offices))
+        parse_ok = meta.get("parse_ok", "?")
+        print(f"[normalize] kaigokensaku 属性ファイル読込: {total:,}件 (parse_ok={parse_ok})")
+        return offices
+    except Exception as e:
+        print(f"[normalize] WARN: kaigokensaku 属性ファイル読込エラー: {e}")
+        return {}
+
+
+def apply_kaigokensaku_attrs(records: list[dict], attrs_map: dict) -> int:
+    """
+    正規化済みレコードリストに kaigokensaku 属性を充填する。
+    充填件数を返す。
+    """
+    if not attrs_map:
+        return 0
+
+    filled = 0
+    for rec in records:
+        office_code = rec.get("office_code", "")
+        if not office_code:
+            continue
+        attrs = attrs_map.get(office_code)
+        if attrs is None:
+            continue
+        rec["terminal_care_addon"] = attrs.get("terminal_care_addon")
+        rec["specific_office_addon"] = attrs.get("specific_office_addon")
+        rec["emergency_phone_support"] = attrs.get("emergency_phone_support")
+        rec["chief_caremanager_count"] = attrs.get("chief_caremanager_count")
+        if attrs.get("parse_ok"):
+            filled += 1
+
+    return filled
+
+
 def normalize_all(input_path: str) -> list[dict]:
     """CSV全件を正規化してレコードリストを返す"""
     print(f"[normalize] 入力: {input_path}")
@@ -288,6 +349,15 @@ def normalize_all(input_path: str) -> list[dict]:
     if skipped > 0:
         print(f"[normalize] スキップ: {skipped}件（office_code空）")
     print(f"[normalize] 正規化完了: {len(records):,}件")
+
+    # kaigokensaku 詳細属性の補完
+    attrs_map = load_kaigokensaku_attrs()
+    if attrs_map:
+        filled = apply_kaigokensaku_attrs(records, attrs_map)
+        print(f"[normalize] kaigokensaku 属性充填: {filled:,}件")
+    else:
+        print(f"[normalize] kaigokensaku 属性ファイルなし -> 4属性は null のまま")
+
     return records
 
 
