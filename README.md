@@ -239,8 +239,52 @@ sitemap URL:  38,201
 3. `python build_site.py` でリビルドする（件数 38,403 件維持を確認）
 4. 都道府県ページでフィルタUIが表示されること、事業所ページでバッジが表示されることを確認してからデプロイする
 
+## kaigokensaku データの利用ポリシー
+
+`scripts/download_kaigokensaku.py` で取得する詳細データの収集方針・法的リスク・対処手順は
+`docs/data-collection-policy.md` にまとめています。
+
+**重要: 全件実行 (osawa が trigger) 前に必ず読むこと。**
+
+- 利用規約「営利行為禁止」条項との関係: フリープランのみの段階ではリスクは相対的に低いが、
+  有料プラン本格展開前に法律専門家への確認を推奨
+- 法的責任は **運営者（osawa / MDX株式会社）が負う**
+- 問い合わせがあった場合は即時停止し、`docs/data-collection-policy.md` の手順に従う
+
+### fetch_error 件の再取得方法
+
+通常実行（`--retry-errors` なし）では `fetch_error=True` のファイルもスキップされる。
+エラー分を再取得するには:
+
+```bash
+python scripts/download_kaigokensaku.py --retry-errors
+# または特定都道府県のみ
+python scripts/download_kaigokensaku.py --retry-errors --pref 14
+```
+
+dry-run で対象件数を確認してから本番実行する:
+```bash
+python scripts/download_kaigokensaku.py --retry-errors --dry-run
+```
+
+### 環境変数の設定
+
+スクリプト実行時に `X-Contact` ヘッダーへ付与する連絡先を環境変数で設定する:
+
+```bash
+# .env.local を作成（.gitignore 対象、コミット禁止）
+echo 'KAIGOKENSAKU_CONTACT=your-email@example.com (zaitaku-navi public data collection)' >> .env.local
+
+# 実行前に読み込む（bash）
+set -a && . .env.local && set +a
+python scripts/download_kaigokensaku.py --dry-run
+```
+
+未設定時はデフォルト値 `care-data-collection/1.0 (please set KAIGOKENSAKU_CONTACT env var)` を使用。
+
 ## ライセンス・出典
 
 - **データ出典**: 介護サービス情報公表システム（厚生労働省）のデータを基に作成
 - **データライセンス**: CC BY 4.0
+- **出典リンク**: https://www.kaigokensaku.mhlw.go.jp/
 - **運営者**: MDX株式会社

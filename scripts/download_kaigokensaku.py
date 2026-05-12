@@ -17,10 +17,28 @@ robots.txt 確認結果 (2026-05-12 時点):
   - 厚労省オープンデータ CSV (CC BY 4.0) の補完として、同一データソースの詳細属性を取得
   - 在宅クリニックナビは患者・家族向けの情報提供サービスであり、ケアマネ選択支援が目的
   - 「介護サービス情報公表システム」の公表目的（利用者へのサービス情報提供）と合致する
-  - 出所は明記する (care.zaitaku-navi.com のデータ出典表示)
+  - 出所は明記する (care.zaitaku-navi.com フッターにリンク付き出典表示)
 
-注意: 「関係のない営利行為等」の解釈は運営者判断の余地がある。
-  本スクリプトは識別可能な User-Agent を使い、サイト負荷を最小化する設計とする。
+## [C1] 法的リスク開示（運営者 osawa が読むこと）
+
+  本スクリプトを実行する前に以下を確認してください:
+
+  1. 法的責任: 利用規約解釈・スクレイピングの適法性については **運営者 (osawa) が
+     最終責任を負う**。本スクリプトは技術的実装に過ぎず、法的適否を保証しない。
+
+  2. 商業サービスとの関係: care.zaitaku-navi.com は有料プラン (¥55,000〜¥110,000/月)
+     を持つ商業サービス。利用規約「関係のない営利行為等の対象にする行為は禁止」との
+     関係について、フリープランのみで運用するか、有料プランでの利用前に法的確認を
+     強く推奨する。詳細は docs/data-collection-policy.md を参照。
+
+  3. 出所表示義務: 取得データを care.zaitaku-navi.com で公開する場合は、サイトの
+     全ページフッターに出典リンク（介護サービス情報公表システム / 厚生労働省 / CC BY 4.0）
+     を表示すること。build_site.py の make_footer() で実装済み。
+
+  4. 指摘への対処: kaigokensaku 運営者から問い合わせがあった場合は即時停止し、
+     docs/data-collection-policy.md の対処手順に従う。
+
+注意: 本スクリプトは識別可能な User-Agent を使い、サイト負荷を最小化する設計とする。
   問題があった場合は即停止できる設計 (進捗ファイル + skip 機能)。
 
 ## rate limit 方針
@@ -53,8 +71,17 @@ robots.txt 確認結果 (2026-05-12 時点):
   # 都道府県を限定
   python scripts/download_kaigokensaku.py --pref 14
 
+  # fetch_error=True のファイルを再取得 (C2 対応)
+  python scripts/download_kaigokensaku.py --retry-errors
+
   # 属性 JSON の集計 (取得済みファイルから再集計)
   python scripts/download_kaigokensaku.py --aggregate-only
+
+## 環境変数 (I1 対応)
+  KAIGOKENSAKU_CONTACT: X-Contact ヘッダーに付与する連絡先。
+    未設定時は generic なデフォルト値を使用。
+    設定例 (.env.local に追記):
+      KAIGOKENSAKU_CONTACT=your-email@example.com (project-name data collection)
 """
 
 import argparse
@@ -106,8 +133,12 @@ UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
-# 連絡先ヘッダー: 問い合わせ窓口を明示する
-CONTACT_HEADER = "osawa@yokohama-home.jp (zaitaku-navi public data collection)"
+# [I1] 連絡先ヘッダー: 環境変数 KAIGOKENSAKU_CONTACT から読み込む。
+# 未設定時は generic なデフォルト値を使用（public repo に email をハードコードしない）。
+# .env.local (gitignore 対象) に実 email を設定して運用する:
+#   KAIGOKENSAKU_CONTACT=your-email@example.com (zaitaku-navi public data collection)
+_DEFAULT_CONTACT = "care-data-collection/1.0 (please set KAIGOKENSAKU_CONTACT env var)"
+CONTACT_HEADER = os.environ.get("KAIGOKENSAKU_CONTACT", _DEFAULT_CONTACT)
 
 JST = timezone(timedelta(hours=9))
 
@@ -565,9 +596,26 @@ def detail_file_path(office_code: str) -> Path:
     return OUTPUT_DETAILS_DIR / f"{office_code}.json"
 
 
-def is_already_done(office_code: str) -> bool:
-    """既に取得済み (ファイルが存在) かどうか"""
-    return detail_file_path(office_code).exists()
+def is_already_done(office_code: str, retry_errors: bool = False) -> bool:
+    """既に取得済み (ファイルが存在) かどうか。
+
+    Args:
+        office_code: 事業所コード
+        retry_errors: True の場合、fetch_error=True のファイルを「未完了」と扱い
+                      再取得対象に含める。--retry-errors フラグで制御。
+    """
+    path = detail_file_path(office_code)
+    if not path.exists():
+        return False
+    if retry_errors:
+        try:
+            with open(path, encoding="utf-8") as fp:
+                data = json.load(fp)
+            if data.get("fetch_error") is True:
+                return False  # エラーファイルは「未完了」として再取得する
+        except Exception:
+            pass  # 読込失敗時はスキップしない（壊れたファイルは再取得）
+    return True
 
 
 def save_detail(office_code: str, attrs: dict):
@@ -702,8 +750,8 @@ def run(args):
             error_count += 1
             continue
 
-        # 既存ファイルがあれば skip
-        if not args.dry_run and is_already_done(office_code):
+        # 既存ファイルがあれば skip (--retry-errors 時は fetch_error=True を再取得)
+        if not args.dry_run and is_already_done(office_code, retry_errors=args.retry_errors):
             skip_count += 1
             if skip_count % 1000 == 0:
                 logger.info(f"[main] skip {skip_count} 件目... (直近: {office_code})")
@@ -791,6 +839,15 @@ def main():
         "--aggregate-only",
         action="store_true",
         help="取得済みファイルから attributes.json のみ再集計する",
+    )
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help=(
+            "fetch_error=True のファイルを再取得対象に含める。"
+            "通常実行では fetch_error ファイルもスキップされるため、"
+            "エラー分をリトライするときにこのフラグを付ける。"
+        ),
     )
     args = parser.parse_args()
 

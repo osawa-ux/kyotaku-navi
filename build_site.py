@@ -550,7 +550,7 @@ def make_footer(pref_data):
   <div class="footer-inner">
     <p><strong>{h(SITE_NAME)}</strong> — 全国の{ENTITY_TYPE}を都道府県・市区町村から検索できるポータルサイト</p>
     <div style="margin-top:16px">{''.join(pref_links)}</div>
-    <p style="font-size:0.75em;color:#aaa;margin-top:8px">データ出典: {h(ATTRIBUTION)}</p>
+    <p class="data-source" style="font-size:0.8em;color:#aaa;margin-top:8px">データ出典: <a href="https://www.kaigokensaku.mhlw.go.jp/" target="_blank" rel="noopener" style="color:#aed581">介護サービス情報公表システム</a>（厚生労働省、<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener" style="color:#aed581">CC BY 4.0</a>）</p>
     <section class="portal-network" aria-labelledby="portal-network-heading">
       <h3 id="portal-network-heading">在宅ナビシリーズ</h3>
       <ul>

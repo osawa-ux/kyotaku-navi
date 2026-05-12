@@ -15,6 +15,7 @@ venv/
 
 # 環境変数・秘密情報
 .env
+.env.local
 .secrets/
 *.json.bak
 
