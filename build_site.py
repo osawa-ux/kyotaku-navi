@@ -551,8 +551,8 @@ def make_footer(pref_data):
     <p><strong>{h(SITE_NAME)}</strong> — 全国の{ENTITY_TYPE}を都道府県・市区町村から検索できるポータルサイト</p>
     <div style="margin-top:16px">{''.join(pref_links)}</div>
     <p style="font-size:0.75em;color:#aaa;margin-top:8px">データ出典: {h(ATTRIBUTION)}</p>
-    <section class="portal-network" aria-label="関連サービス">
-      <h3>在宅ナビシリーズ</h3>
+    <section class="portal-network" aria-labelledby="portal-network-heading">
+      <h3 id="portal-network-heading">在宅ナビシリーズ</h3>
       <ul>
         <li><a href="https://zaitakuclinic-navi.com/">在宅クリニックを探す</a> — 訪問診療を提供するクリニック一覧</li>
         <li><a href="https://kango.zaitaku-navi.com/">訪問看護ステーション一覧</a> — 全国の訪問看護を地域から探す</li>
