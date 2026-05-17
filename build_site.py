@@ -32,6 +32,8 @@ import sys
 from collections import defaultdict
 from datetime import date
 from html import escape as _html_escape
+
+CURRENT_YEAR = date.today().year
 from pathlib import Path
 from urllib.parse import quote
 
@@ -560,7 +562,7 @@ def make_footer(pref_data):
         <li><a href="https://www.souzoku-zeirishi-navi.com/">相続税理士事務所を探す</a> — 相続を扱う税理士事務所を全国から検索</li>
       </ul>
     </section>
-    <div class="footer-bottom">&copy; 2025 {h(SITE_NAME)} ({h(OPERATOR_NAME)})</div>
+    <div class="footer-bottom">&copy; {CURRENT_YEAR} {h(SITE_NAME)} ({h(OPERATOR_NAME)})</div>
   </div>
 </footer>
 </body></html>
@@ -635,7 +637,7 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
     """都道府県ページ"""
     slug = PREF_SLUG.get(pref_code, pref_code)
     n = len(offices)
-    title = f'{pref_name}の{ENTITY_TYPE}一覧（{n}件）【2025年】| {SITE_NAME}'
+    title = f'{pref_name}の{ENTITY_TYPE}一覧（{n}件）【{CURRENT_YEAR}年】| {SITE_NAME}'
     desc = f'{pref_name}の{ENTITY_TYPE}を{n}件掲載。市区町村別に検索できます。住所・電話番号・営業日を一覧で確認。'
     canonical = f'{SITE_URL}/pref/{slug}.html'
 

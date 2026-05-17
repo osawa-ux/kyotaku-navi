@@ -17,6 +17,7 @@ import json
 import sys
 import os
 import argparse
+from datetime import date
 from pathlib import Path
 from html import escape as _html_escape
 from urllib.parse import quote
@@ -35,6 +36,7 @@ SITE_NAME = CFG.get('site_name', '居宅介護支援ナビ')
 GA4_ID = CFG.get('analytics', {}).get('ga4_id', '')
 DIFF_FILTERS_CFG = CFG.get('differentiator_filters', {}).get('filters', {})
 ATTRIBUTION = CFG.get('attribution', {}).get('source', '')
+CURRENT_YEAR = date.today().year
 
 # 都道府県スラッグマップ
 PREF_SLUG = {
@@ -227,7 +229,7 @@ def build_feature_page(pref_slug_val: str, filter_key: str, all_offices: list) -
 <footer>
   <div class="footer-inner">
     <p><strong>{h(SITE_NAME)}</strong></p>
-    <div class="footer-bottom">&copy; 2025 {h(SITE_NAME)}</div>
+    <div class="footer-bottom">&copy; {CURRENT_YEAR} {h(SITE_NAME)}</div>
   </div>
 </footer>
 </body>
