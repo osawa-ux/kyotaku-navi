@@ -392,9 +392,22 @@ def main():
             print(f"  詳細ページ: {pages:,}枚")
     if do_build:
         print(f"  出力先: {DIST_DIR}/")
+
     if not verify_ok:
         print(f"  [WARN] 一部の検証が失敗しています")
         sys.exit(1)
+
+    # heartbeat: record last run (fail-safe, never raises)
+    try:
+        import subprocess as _hb_subprocess
+        import sys as _hb_sys
+        from pathlib import Path as _hb_Path
+        _hb_subprocess.run(
+            [_hb_sys.executable, str(_hb_Path.home() / "central-registry" / "scripts" / "heartbeat.py"), "KYOTAKU-PORTAL-01"],
+            capture_output=True,
+        )
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
