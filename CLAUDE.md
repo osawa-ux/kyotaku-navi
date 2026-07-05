@@ -188,3 +188,11 @@ repo 作業時に意識すること:
 - **MEMORY = 軽量 index + 短い原則**。詳細手順・テンプレ・事例は Obsidian `70_SOP/` へ置く
 - 新規 `feedback_*.md` は 50行以内。超えそうなら SOP 分離
 - skill 実行時に読まれるべき挙動ルールは auto-memory でなく vault の `30_Areas/<skill>-patterns/`（委任型 skill レジストリ・正本 `70_SOP/obsidian-save-policy.md`）に書く
+
+---
+
+## docs 構成（decisions / design / runbooks）
+
+決定の正本は `docs/decisions/`（連番 MADR・不変・supersede 更新）。設計 living doc は `docs/design/`。運用手順は `docs/runbooks/`。
+
+運用ルール正本: vault `70_SOP/product-docs-adr.md`
