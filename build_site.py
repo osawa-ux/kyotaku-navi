@@ -170,8 +170,16 @@ def category_index_url(category: str) -> str:
 
 
 def city_slug(city_name: str) -> str:
-    """市区町村名からURL安全な slug を生成"""
-    return quote(city_name, safe='')
+    """市区町村ページのファイル名 slug（生 UTF-8。kango と同方式）。
+    percent エンコードはここでは行わない（URL 生成時に city_page_url で 1 回だけ適用する）。
+    不変条件: HTML/sitemap 上の URL を 1 回デコードした結果 == dist 上のファイル名"""
+    return city_name
+
+
+def city_page_url(pref_slug: str, city_name: str) -> str:
+    """市区町村ページの URL パス。percent エンコードはここで 1 回だけ適用する。
+    href / canonical / sitemap loc はすべてこの関数を経由すること（二重エンコード防止）"""
+    return f'/pref/{pref_slug}/{quote(city_slug(city_name), safe="")}.html'
 
 
 # =============================================================
@@ -647,8 +655,7 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
     city_items = sorted(cities_data.items(), key=lambda x: -len(x[1]))
     city_html = '<div class="city-grid">'
     for cname, coffices in city_items:
-        cslug = city_slug(cname)
-        city_html += f'<a href="/pref/{slug}/{cslug}.html" class="city-link">{h(cname)} ({len(coffices)})</a>'
+        city_html += f'<a href="{city_page_url(slug, cname)}" class="city-link">{h(cname)} ({len(coffices)})</a>'
     city_html += '</div>'
 
     # 事業所一覧カード（data-attributeを埋め込む）
@@ -700,11 +707,10 @@ def build_pref_page(pref_code, pref_name, offices, cities_data, pref_data):
 def build_city_page(pref_code, pref_name, city_name_val, offices, pref_data):
     """市区町村ページ"""
     pslug = PREF_SLUG.get(pref_code, pref_code)
-    cslug = city_slug(city_name_val)
     n = len(offices)
     title = f'{city_name_val}（{pref_name}）の{ENTITY_TYPE}一覧（{n}件） | {SITE_NAME}'
     desc = f'{pref_name}{city_name_val}の{ENTITY_TYPE}を{n}件掲載。住所・電話番号・営業日を一覧で確認できます。'
-    canonical = f'{SITE_URL}/pref/{pslug}/{cslug}.html'
+    canonical = f'{SITE_URL}{city_page_url(pslug, city_name_val)}'
 
     bc = make_breadcrumb([
         ('トップ', '/'),
@@ -757,7 +763,7 @@ def build_office_page(o, pref_name, pref_data):
     pref_code = o.get('pref_code', '')
     pslug = PREF_SLUG.get(pref_code, pref_code)
     city_name_val = o.get('city', '')
-    cslug = city_slug(city_name_val)
+    city_url = city_page_url(pslug, city_name_val)
 
     category = get_category(o)
     cat_cfg = SERVICE_CATEGORIES.get(category, {})
@@ -772,7 +778,7 @@ def build_office_page(o, pref_name, pref_data):
         ('トップ', '/'),
         (cat_label, category_index_url(category)),
         (pref_name, f'/pref/{pslug}.html'),
-        (city_name_val, f'/pref/{pslug}/{cslug}.html'),
+        (city_name_val, city_url),
         (name, ''),
     ])
 
@@ -861,7 +867,7 @@ def build_office_page(o, pref_name, pref_data):
   {map_html}
 
   <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
-    <a href="/pref/{pslug}/{cslug}.html">&larr; {h(city_name_val)}の{ENTITY_NAME}一覧</a>
+    <a href="{city_url}">&larr; {h(city_name_val)}の{ENTITY_NAME}一覧</a>
     <a href="/pref/{pslug}.html">&larr; {h(pref_name)}の{ENTITY_NAME}一覧</a>
   </div>
 </div>
@@ -1173,12 +1179,12 @@ def build_site():
         pref_city_dir = DIST_DIR / 'pref' / slug
         pref_city_dir.mkdir(parents=True, exist_ok=True)
         for cname, coffices in cities.items():
-            cslug = city_slug(cname)
+            cslug = city_slug(cname)  # 生 UTF-8 のファイル名（URL を 1 回デコードした形と一致させる）
             html = build_city_page(code, pref_name, cname, coffices, pref_data)
             (pref_city_dir / f'{cslug}.html').write_text(html, encoding='utf-8')
             city_page_count += 1
             if len(coffices) >= 2:
-                city_url_list.append(f'{SITE_URL}/pref/{slug}/{quote(cslug, safe="")}.html')
+                city_url_list.append(f'{SITE_URL}{city_page_url(slug, cname)}')
 
     print(f'都道府県ページ {len(offices_by_pref)}枚 + 市区町村ページ {city_page_count}枚 生成完了')
 
