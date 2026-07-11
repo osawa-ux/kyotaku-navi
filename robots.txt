@@ -17,4 +17,4 @@ Disallow: /
 User-agent: Google-Extended
 Disallow: /
 
-Sitemap: https://care.zaitaku-navi.com/sitemap.xml
+Sitemap: https://zaitaku-navi.com/care/sitemap.xml
