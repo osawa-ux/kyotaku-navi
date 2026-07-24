@@ -55,6 +55,8 @@ SITE_URL = CFG.get('site_url', '')
 ENTITY_NAME = CFG.get('entity_name', '事業所')
 ENTITY_TYPE = CFG.get('entity_type', '居宅介護支援事業所')
 CARE_TYPE = CFG.get('care_type', '居宅介護支援')
+MEMBERS_APP_URL = CFG.get('members_app_url', '')  # 事業所向け会員管理アプリの公開URL（未設定時は非表示）
+MEMBERS_LOGIN_LABEL = CFG.get('members_login_label', '')  # ヘッダー/フッターのログインリンクラベル
 OPERATOR_NAME = 'MDX株式会社'
 GA4_ID = CFG.get('analytics', {}).get('ga4_id', '')
 ATTRIBUTION = CFG.get('attribution', {}).get('source', '')
@@ -521,6 +523,7 @@ def make_header():
     </div>
     <nav>
       <a href="/about.html">運営者情報</a>
+      {'<a href="' + MEMBERS_APP_URL + '/login">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}
     </nav>
   </div>
 </header>
@@ -570,6 +573,7 @@ def make_footer(pref_data):
         <li><a href="https://www.souzoku-zeirishi-navi.com/">相続税理士事務所を探す</a> — 相続を扱う税理士事務所を全国から検索</li>
       </ul>
     </section>
+    <p class="members-login" style="margin-top:8px">{'<a href="' + MEMBERS_APP_URL + '/login" style="color:#aed581">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}</p>
     <div class="footer-bottom">&copy; {CURRENT_YEAR} {h(SITE_NAME)} ({h(OPERATOR_NAME)})</div>
   </div>
 </footer>

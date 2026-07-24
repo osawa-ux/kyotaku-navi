@@ -6,6 +6,8 @@
   "cname_domain": "care.zaitaku-navi.com",
   "entity_name": "事業所",
   "entity_type": "居宅介護支援事業所",
+  "members_app_url": "https://members.zaitakuclinic-navi.com",
+  "members_login_label": "事業所ログイン",
   "care_type": "居宅介護支援",
   "service_code": "430",
   "entity_detail_prefix": "caremanager",
