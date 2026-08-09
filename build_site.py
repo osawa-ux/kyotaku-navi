@@ -32,6 +32,7 @@ import sys
 from collections import defaultdict
 from datetime import date
 from html import escape as _html_escape
+from urllib.parse import urlparse
 
 CURRENT_YEAR = date.today().year
 from pathlib import Path
@@ -52,6 +53,10 @@ with open(CONFIG_PATH, encoding='utf-8') as f:
 SITE_NAME = CFG['site_name']
 SITE_DESC = CFG['site_description']
 SITE_URL = CFG.get('site_url', '')
+# 配信ベースパス（zaitaku-navi.com/care サブパス配信 → '/care'）。
+# edge worker (zaitaku-edge) は HTML 属性しか /{seg} プレフィックスを付与できず、
+# JS 内 fetch('/data/search/...') は書き換えられないため build 時に焼き込む（2026-08-10）。
+BASE_PATH = urlparse(SITE_URL).path.rstrip('/') if SITE_URL else ''
 ENTITY_NAME = CFG.get('entity_name', '事業所')
 ENTITY_TYPE = CFG.get('entity_type', '居宅介護支援事業所')
 CARE_TYPE = CFG.get('care_type', '居宅介護支援')
@@ -303,7 +308,7 @@ SEARCH_JS = """\
   var data=[];
   var prefCode=document.body.dataset.prefCode||'';
   if(!prefCode||!input)return;
-  fetch('/data/search/'+prefCode+'.json')
+  fetch('__BASE_PATH__/data/search/'+prefCode+'.json')
     .then(function(r){return r.json()})
     .then(function(d){data=d})
     .catch(function(){});
@@ -523,7 +528,7 @@ def make_header():
     </div>
     <nav>
       <a href="/about.html">運営者情報</a>
-      {'<a href="' + MEMBERS_APP_URL + '/login">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}
+      {'<a href="' + MEMBERS_APP_URL + '/clinic/login">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}
     </nav>
   </div>
 </header>
@@ -573,7 +578,7 @@ def make_footer(pref_data):
         <li><a href="https://www.souzoku-zeirishi-navi.com/">相続税理士事務所を探す</a> — 相続を扱う税理士事務所を全国から検索</li>
       </ul>
     </section>
-    <p class="members-login" style="margin-top:8px">{'<a href="' + MEMBERS_APP_URL + '/login" style="color:#aed581">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}</p>
+    <p class="members-login" style="margin-top:8px">{'<a href="' + MEMBERS_APP_URL + '/clinic/login" style="color:#aed581">' + h(MEMBERS_LOGIN_LABEL) + '</a>' if MEMBERS_APP_URL and MEMBERS_LOGIN_LABEL else ''}</p>
     <div class="footer-bottom">&copy; {CURRENT_YEAR} {h(SITE_NAME)} ({h(OPERATOR_NAME)})</div>
   </div>
 </footer>
@@ -1148,7 +1153,8 @@ def build_site():
 
     # CSS/JS
     (DIST_DIR / 'static' / 'style.css').write_text(COMMON_CSS, encoding='utf-8')
-    (DIST_DIR / 'static' / 'search.js').write_text(SEARCH_JS, encoding='utf-8')
+    (DIST_DIR / 'static' / 'search.js').write_text(
+        SEARCH_JS.replace('__BASE_PATH__', BASE_PATH), encoding='utf-8')
     (DIST_DIR / 'static' / 'filter.js').write_text(FILTER_JS, encoding='utf-8')
     print('CSS/JS 生成完了')
 
