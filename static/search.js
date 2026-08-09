@@ -4,7 +4,7 @@
   var data=[];
   var prefCode=document.body.dataset.prefCode||'';
   if(!prefCode||!input)return;
-  fetch('/data/search/'+prefCode+'.json')
+  fetch('/care/data/search/'+prefCode+'.json')
     .then(function(r){return r.json()})
     .then(function(d){data=d})
     .catch(function(){});
