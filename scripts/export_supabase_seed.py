@@ -4,7 +4,7 @@
 在宅ナビ統合プラットフォーム P1-b 第1イテレーション。
 data/normalized/offices_430.json（介護サービス情報公表システム由来・36,491 件）を
 zaitaku-members の facilities テーブル形式（service_key='care'）に変換し、
-dist/supabase/ 配下に seed（JSONL + SQL）を生成する。
+exports/supabase/ 配下に seed（JSONL + SQL）を生成する。
 
 ## しないこと（スコープ外・重要）
 
@@ -29,8 +29,8 @@ dist/supabase/ 配下に seed（JSONL + SQL）を生成する。
 
 ## 出力仕様（docs/design と一致）
 
-  - JSONL: dist/supabase/care_facilities_seed.jsonl（UTF-8 / LF / null は JSON null）
-  - SQL:   dist/supabase/care_facilities_seed.sql（upsert・on conflict do update）
+  - JSONL: exports/supabase/care_facilities_seed.jsonl（UTF-8 / LF / null は JSON null）
+  - SQL:   exports/supabase/care_facilities_seed.sql（upsert・on conflict do update）
 
 Usage:
     python scripts/export_supabase_seed.py
@@ -51,7 +51,10 @@ except AttributeError:
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_FILE = REPO_ROOT / "data" / "normalized" / "offices_430.json"
-OUT_DIR = REPO_ROOT / "dist" / "supabase"
+# 出力先は dist/ の外に置く（dist/ は gh-pages へ丸ごと公開されるため、
+# 内部アーティファクトを混ぜると公開サイトに載る。2026-08-10 に pre-push guard が
+# 公開混入を捕捉した再発防止）
+OUT_DIR = REPO_ROOT / "exports" / "supabase"
 OUT_JSONL = OUT_DIR / "care_facilities_seed.jsonl"
 OUT_SQL = OUT_DIR / "care_facilities_seed.sql"
 
@@ -172,11 +175,11 @@ def main() -> int:
     with OUT_JSONL.open("w", encoding="utf-8", newline="\n") as f:
         for rec in records:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"[OK] JSONL 出力: dist/supabase/care_facilities_seed.jsonl（{output_count} 行）")
+    print(f"[OK] JSONL 出力: exports/supabase/care_facilities_seed.jsonl（{output_count} 行）")
 
     with OUT_SQL.open("w", encoding="utf-8", newline="\n") as f:
         f.write(build_sql(records))
-    print(f"[OK] SQL 出力: dist/supabase/care_facilities_seed.sql（{output_count} 行・upsert）")
+    print(f"[OK] SQL 出力: exports/supabase/care_facilities_seed.sql（{output_count} 行・upsert）")
 
     # 出力ファイルの行数と records 件数の一致を再検証（成果物間の件数一致）。
     with OUT_JSONL.open(encoding="utf-8") as f:
