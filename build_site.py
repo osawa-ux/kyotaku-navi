@@ -641,6 +641,8 @@ def build_index(offices_by_pref, pref_data, total_count, offices_by_category):
     <div class="stat-box"><div class="num">47</div><div class="label">都道府県</div></div>
   </div>
 
+  <p style="margin:20px 0"><a href="/nearby.html" class="card" style="display:inline-block;text-decoration:none;color:#1a6e3c;font-weight:bold">📍 現在地から近い{ENTITY_NAME}を探す</a></p>
+
   <h2 style="margin-top:32px;font-size:1.2em">サービスカテゴリから探す</h2>
   <div class="card-grid">
     {category_cards}
@@ -1049,6 +1051,142 @@ def generate_stats_json(offices_by_pref, pref_data, total, path):
     path.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
+NEARBY_JS = r"""
+(function() {
+  var R = 6371;
+  var MAX_RESULTS = 20;
+  var CAT_PREFIX = __CAT_PREFIX__;
+
+  function haversine(lat1, lng1, lat2, lng2) {
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+  function detailHref(o) {
+    var prefix = CAT_PREFIX[o.cat] || o.cat;
+    return '__BASE_PATH__/' + prefix + '/' + esc(o.id) + '.html';
+  }
+
+  function renderCard(o) {
+    return '<div class="card" style="margin-bottom:8px">' +
+      '<h3><a href="' + detailHref(o) + '">' + esc(o.n) + '</a></h3>' +
+      '<div class="meta">' +
+      '<span class="addr">' + esc(o.a) + '</span>' +
+      '<span class="specs">📍 現在地から約 ' + o._dist.toFixed(1) + 'km</span>' +
+      '</div></div>';
+  }
+
+  var resultDiv = document.getElementById('nearbyResults');
+  var statusDiv = document.getElementById('nearbyStatus');
+  function showStatus(msg) { statusDiv.innerHTML = msg; }
+
+  if (!navigator.geolocation) {
+    showStatus('<p style="color:#c62828;">お使いのブラウザは位置情報に対応していません。</p>');
+    return;
+  }
+
+  showStatus('<p>📍 位置情報を取得中...</p>');
+
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    var myLat = pos.coords.latitude;
+    var myLng = pos.coords.longitude;
+    showStatus('<p>📍 位置情報を取得しました。データを読み込み中...</p>');
+
+    fetch('__BASE_PATH__/data/offices_geo.json')
+      .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(data) {
+        // Step 1: 16km 以内の候補を抽出
+        var initial = [];
+        for (var i = 0; i < data.length; i++) {
+          var o = data[i];
+          if (typeof o.lt !== 'number' || typeof o.lg !== 'number') continue;
+          var d = haversine(myLat, myLng, o.lt, o.lg);
+          if (d <= 16) { o._dist = d; initial.push(o); }
+        }
+
+        // Step 2: 候補件数に応じて表示半径を自動調整（都市部で近すぎる候補に絞る）
+        var radius;
+        if (initial.length > 80) { radius = 4; }
+        else if (initial.length > 40) { radius = 6; }
+        else if (initial.length > 15) { radius = 8; }
+        else { radius = 16; }
+
+        var display = initial.filter(function(o) { return o._dist <= radius; });
+        display.sort(function(a, b) { return a._dist - b._dist; });
+
+        if (display.length === 0) {
+          showStatus('<p>現在地から16km以内に該当する事業所が見つかりませんでした。</p>' +
+                     '<p><a href="__BASE_PATH__/">都道府県から探す →</a></p>');
+          return;
+        }
+
+        var shown = display.slice(0, MAX_RESULTS);
+        showStatus('<p>現在地から <strong>' + radius + 'km</strong> 以内に <strong>' + display.length +
+                   '</strong> 件。近い順に ' + shown.length + ' 件を表示しています。</p>');
+        resultDiv.innerHTML = shown.map(renderCard).join('');
+      })
+      .catch(function(e) {
+        showStatus('<p style="color:#c62828;">データの読み込みに失敗しました。<br><small>' + esc(e.message) + '</small></p>');
+      });
+  }, function(err) {
+    if (err.code === 1) {
+      showStatus(
+        '<div style="text-align:left;max-width:500px;margin:0 auto;">' +
+        '<p style="color:#c62828;font-weight:bold;margin-bottom:12px;">位置情報の使用が許可されていません</p>' +
+        '<p style="margin-bottom:8px;">以下の手順で位置情報を許可してください：</p>' +
+        '<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;">' +
+        '<strong>iPhone (Safari)</strong><br>設定 → Safari → 位置情報 → 「確認」に変更<br>その後このページを再読み込み</div>' +
+        '<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;">' +
+        '<strong>Android (Chrome)</strong><br>アドレスバー左の鍵マーク → 位置情報 → 許可</div>' +
+        '<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+        '<strong>PC (Chrome)</strong><br>アドレスバー左の鍵マーク → 位置情報 → 許可 → 再読み込み</div>' +
+        '<p><a href="__BASE_PATH__/">都道府県から探す →</a></p></div>');
+    } else {
+      var msgs = {2: '位置情報を取得できませんでした。', 3: '位置情報の取得がタイムアウトしました。'};
+      showStatus('<p style="color:#c62828;">' + (msgs[err.code] || '位置情報の取得に失敗しました。') +
+        '</p><p><a href="__BASE_PATH__/">都道府県から探す →</a></p>');
+    }
+  }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 300000});
+})();
+"""
+
+
+def build_nearby_page(pref_data):
+    """現在地から近い事業所を探すページ（clinic / kango と同一導線）"""
+    title = f'現在地から近い{ENTITY_TYPE}を探す｜{SITE_NAME}'
+    desc = f'現在地周辺の{ENTITY_TYPE}を距離順に表示。GPS位置情報を使って近くの{ENTITY_NAME}をすぐに見つけられます。'
+    canonical = f'{SITE_URL}/nearby.html'
+
+    # service_category → URL prefix の対応表を JS に埋め込む（将来カテゴリが増えても追従する）
+    cat_prefix = {cat: category_url_prefix(cat) for cat in SERVICE_CATEGORIES}
+    js = (NEARBY_JS
+          .replace('__CAT_PREFIX__', json.dumps(cat_prefix, ensure_ascii=False))
+          .replace('__BASE_PATH__', BASE_PATH))
+
+    return make_head(title, desc, canonical) + f"""<body>
+{make_header()}
+<div class="container">
+  <nav class="breadcrumb"><a href="/">トップ</a> &gt; 現在地から探す</nav>
+  <h1>現在地から近い{ENTITY_TYPE}を探す</h1>
+  <p style="margin:12px 0;color:#555">GPS位置情報を使って、現在地周辺の{ENTITY_TYPE}を近い順に最大20件表示します。</p>
+  <p style="color:#888;font-size:13px;margin-bottom:16px">表示は直線距離に基づく近隣候補です。実際の対応可否は担当エリア・空き状況等により異なります。</p>
+
+  <div id="nearbyStatus" style="padding:20px;text-align:center"></div>
+  <div id="nearbyResults" class="card-grid"></div>
+
+  <p style="margin-top:24px"><a href="/">← トップページに戻る</a></p>
+</div>
+{make_footer(pref_data)}
+<script>{js}</script>
+</body></html>"""
+
+
 def generate_sitemap(offices, offices_by_pref, city_urls, dist_dir):
     """sitemap.xml"""
     today = date.today().isoformat()
@@ -1069,6 +1207,7 @@ def generate_sitemap(offices, offices_by_pref, city_urls, dist_dir):
     # 事業所詳細
     for o in offices:
         urls.append((f'{SITE_URL}{detail_url(o)}', '0.5', 'monthly'))
+    urls.append((f'{SITE_URL}/nearby.html', '0.5', 'monthly'))
     urls.append((f'{SITE_URL}/about.html', '0.3', 'yearly'))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
@@ -1218,6 +1357,10 @@ def build_site():
         prefix = category_url_prefix(cat)
         (DIST_DIR / prefix / 'index.html').write_text(html, encoding='utf-8')
     print(f'カテゴリトップ {len(offices_by_category)}枚 生成完了')
+
+    # 現在地から探すページ
+    (DIST_DIR / 'nearby.html').write_text(build_nearby_page(pref_data), encoding='utf-8')
+    print('nearby.html 生成完了')
 
     # 運営者情報ページ
     about = build_about_page(pref_data, len(offices))
