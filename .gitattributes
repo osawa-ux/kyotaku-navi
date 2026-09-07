@@ -1,0 +1,28 @@
+# 改行コードを repo 側で固定する（Windows の core.autocrlf=true 環境と CI の Linux で working tree の
+# バイト列が食い違い、sha256 照合・文字列置換型の変異オラクル・bash スクリプトが壊れる事故を防ぐ）。
+# 既定は LF。Windows 専用のバッチだけ CRLF。
+* text=auto eol=lf
+
+# Windows バッチ / コマンドは CRLF でないと動かない
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# PowerShell は LF で可
+*.ps1 text eol=lf
+*.psm1 text eol=lf
+
+# シェルスクリプト・YAML は LF 固定（lefthook / bash の syntax error 事故防止）
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# バイナリは変換禁止
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.pem binary
